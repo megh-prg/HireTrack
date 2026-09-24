@@ -10,6 +10,7 @@ import Prep from './pages/Prep'
 import ProgressPage from './pages/Progress'
 import Recruiters from './pages/Recruiters'
 import Settings from './pages/Settings'
+import Sources from './pages/Sources'
 import Today from './pages/Today'
 
 // The job-search pipeline, in the order you work through it.
@@ -75,6 +76,9 @@ function Shell() {
             </NavLink>
           ))}
           <div className="nav-sep" />
+          <NavLink to="/sources">
+            <span className="step">↻</span>Job sources
+          </NavLink>
           <NavLink to="/settings">
             <span className="step">⚙</span>Profile & goals
           </NavLink>
@@ -86,7 +90,7 @@ function Shell() {
         </div>
       </aside>
       <nav className="mobile-nav" aria-label="Main">
-        {[...NAV, { to: '/settings', label: 'Profile' }].map((item) => (
+        {[...NAV, { to: '/sources', label: 'Sources' }, { to: '/settings', label: 'Profile' }].map((item) => (
           <NavLink key={item.to} to={item.to} end={item.to === '/'}>
             {item.label}
           </NavLink>
@@ -103,6 +107,7 @@ function Shell() {
           <Route path="/prep" element={<Prep />} />
           <Route path="/followups" element={<FollowUps />} />
           <Route path="/progress" element={<ProgressPage />} />
+          <Route path="/sources" element={<Sources />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>

@@ -13,8 +13,15 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./hiretrack.db"
     cors_origins: str = "http://localhost:5173"
     prep_dir: Path = REPO_ROOT / "prep"
-    seed_demo_data: bool = True
+    # Demo rows are off by default so the app only ever shows your real data.
+    seed_demo_data: bool = False
     remotive_url: str = "https://remotive.com/api/remote-jobs"
+    # Free key from https://developer.adzuna.com — enables the Adzuna India source.
+    adzuna_app_id: str = ""
+    adzuna_app_key: str = ""
+    adzuna_country: str = "in"
+    # Re-run saved job sources in the background every N hours (0 = only when you click Refresh).
+    auto_refresh_hours: float = 12
 
     @property
     def cors_origin_list(self) -> list[str]:

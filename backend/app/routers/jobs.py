@@ -1,16 +1,15 @@
 from typing import Literal
 
-import httpx
 from fastapi import APIRouter, HTTPException, Query, UploadFile
 from sqlalchemy import or_, select
 from sqlalchemy.orm import selectinload
 
 from app.database.models import Job
 from app.deps import DB, get_or_404, get_profile
-from app.jobs.ingestion import fetch_remotive, parse_upload, upsert_jobs
+from app.jobs.ingestion import parse_upload, upsert_jobs
 from app.jobs.matching import apply_match
 from app.jobs.skills import extract_skills
-from app.schemas import IngestResponse, JobCreate, JobRead, JobUpdate, RemotiveIngest
+from app.schemas import IngestResponse, JobCreate, JobRead, JobUpdate
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
@@ -91,12 +90,3 @@ async def upload_jobs(file: UploadFile, db: DB):
     except (ValueError, UnicodeDecodeError) as exc:
         raise HTTPException(422, f"Could not parse file: {exc}") from exc
     return upsert_jobs(db, jobs, source="upload")
-
-
-@router.post("/ingest/remotive", response_model=IngestResponse)
-def ingest_remotive(payload: RemotiveIngest, db: DB):
-    try:
-        jobs = fetch_remotive(payload.search, payload.limit)
-    except httpx.HTTPError as exc:
-        raise HTTPException(502, f"Remotive request failed: {exc}") from exc
-    return upsert_jobs(db, jobs, source="remotive")

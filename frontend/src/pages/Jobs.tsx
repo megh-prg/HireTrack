@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api, ApiError, type Job, type JobInput } from '../api'
 import { Card, Chip, Empty, Field, Modal, PageHeader, Score, Status } from '../components/ui'
 import { formatDate, formatLocation, stageLabel } from '../format'
@@ -9,7 +10,6 @@ export default function Jobs() {
   const [source, setSource] = useState('')
   const [sort, setSort] = useState<'newest' | 'score'>('score')
   const [adding, setAdding] = useState(false)
-  const [importing, setImporting] = useState(false)
   const [selected, setSelected] = useState<Job | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const { data: jobs, error, loading, reload } = useApi(() => api.jobs.list({ q, source, sort }), [q, source, sort])
@@ -27,9 +27,9 @@ export default function Jobs() {
         subtitle="Every role you're considering, de-duplicated and scored against your profile."
         actions={
           <>
-            <button className="btn" onClick={() => setImporting(true)}>
-              Import
-            </button>
+            <Link className="btn" to="/sources">
+              ↻ Job sources
+            </Link>
             <button className="btn primary" onClick={() => setAdding(true)}>
               + Add job
             </button>
@@ -43,10 +43,12 @@ export default function Jobs() {
           <select value={source} onChange={(e) => setSource(e.target.value)} aria-label="Source">
             <option value="">All sources</option>
             <option value="manual">Manual</option>
+            <option value="greenhouse">Greenhouse</option>
+            <option value="lever">Lever</option>
+            <option value="ashby">Ashby</option>
+            <option value="adzuna">Adzuna</option>
             <option value="remotive">Remotive</option>
             <option value="upload">Upload</option>
-            <option value="import">API import</option>
-            <option value="demo">Demo</option>
           </select>
           <select value={sort} onChange={(e) => setSort(e.target.value as 'newest' | 'score')} aria-label="Sort">
             <option value="score">Best match</option>
@@ -54,7 +56,11 @@ export default function Jobs() {
           </select>
         </div>
         <Status loading={loading && !jobs} error={error} />
-        {jobs && jobs.length === 0 && <Empty>No jobs yet. Add one or import from Remotive / CSV.</Empty>}
+        {jobs && jobs.length === 0 && (
+          <Empty>
+            {q || source ? 'No jobs match these filters.' : <>No jobs yet. <Link to="/sources">Add a job source</Link> to pull real openings from company careers pages, or add one by hand.</>}
+          </Empty>
+        )}
         {jobs && jobs.length > 0 && (
           <div className="table-wrap">
             <table>
@@ -116,16 +122,6 @@ export default function Jobs() {
           onSaved={(job) => {
             setAdding(false)
             setNotice(`Added “${job.title}” with a ${Math.round(job.match_score ?? 0)} match.`)
-            reload()
-          }}
-        />
-      )}
-      {importing && (
-        <ImportModal
-          onClose={() => setImporting(false)}
-          onDone={(msg) => {
-            setImporting(false)
-            setNotice(msg)
             reload()
           }}
         />
@@ -192,61 +188,6 @@ function AddJobModal({ onClose, onSaved }: { onClose: () => void; onSaved: (job:
           <button className="btn primary">Save job</button>
         </div>
       </form>
-    </Modal>
-  )
-}
-
-function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: (msg: string) => void }) {
-  const [search, setSearch] = useState('python')
-  const [limit, setLimit] = useState(30)
-  const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState<string | null>(null)
-
-  const run = async (fn: () => Promise<{ created: number; duplicates: number }>) => {
-    setBusy(true)
-    setErr(null)
-    try {
-      const r = await fn()
-      onDone(`Imported ${r.created} new job${r.created === 1 ? '' : 's'} (${r.duplicates} duplicate${r.duplicates === 1 ? '' : 's'} skipped).`)
-    } catch (ex) {
-      setErr(ex instanceof Error ? ex.message : String(ex))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <Modal title="Import jobs" onClose={onClose}>
-      <h3>Remote jobs from Remotive</h3>
-      <p className="muted small">Pulls live remote postings from the Remotive public API. Please keep it to a few imports a day.</p>
-      <div className="filters" style={{ marginTop: 10 }}>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Keyword, e.g. python, llm" />
-        <select value={limit} onChange={(e) => setLimit(Number(e.target.value))} aria-label="How many">
-          {[10, 30, 50, 100].map((n) => (
-            <option key={n} value={n}>
-              {n} jobs
-            </option>
-          ))}
-        </select>
-        <button className="btn primary" disabled={busy || !search} onClick={() => run(() => api.jobs.ingestRemotive(search, limit))}>
-          {busy ? 'Importing…' : 'Fetch'}
-        </button>
-      </div>
-      <h3 style={{ marginTop: 18 }}>CSV or JSON file</h3>
-      <p className="muted small">
-        Columns: <code>title, company, location, salary, url, description, remote</code>. Duplicates are skipped automatically.
-      </p>
-      <input
-        type="file"
-        accept=".csv,.json"
-        disabled={busy}
-        style={{ marginTop: 8 }}
-        onChange={(e) => {
-          const file = e.target.files?.[0]
-          if (file) run(() => api.jobs.upload(file))
-        }}
-      />
-      {err && <div className="alert" style={{ marginTop: 12 }}>{err}</div>}
     </Modal>
   )
 }

@@ -71,6 +71,42 @@ export interface IngestResult {
   created_ids: number[]
 }
 
+export type SourceKind = 'greenhouse' | 'lever' | 'ashby' | 'adzuna' | 'remotive'
+
+export interface JobSource {
+  id: number
+  kind: SourceKind
+  query: string
+  location: string
+  company_name: string
+  title_keywords: string
+  location_keywords: string
+  limit: number
+  enabled: boolean
+  last_run_at: string | null
+  last_found: number
+  last_created: number
+  last_error: string
+}
+
+export interface SourceInput {
+  url?: string
+  kind?: SourceKind
+  query?: string
+  location?: string
+  company_name?: string
+  title_keywords?: string
+  location_keywords?: string
+  limit?: number
+}
+
+export interface SourceRun {
+  source: JobSource
+  found: number
+  created: number
+  duplicates: number
+}
+
 export interface Analysis {
   score: number
   skills: string[]
@@ -225,8 +261,13 @@ export const api = {
       body.append('file', file)
       return request<IngestResult>('/api/jobs/upload', { method: 'POST', body })
     },
-    ingestRemotive: (search: string, limit: number) =>
-      request<IngestResult>('/api/jobs/ingest/remotive', json('POST', { search, limit })),
+  },
+  sources: {
+    list: () => request<JobSource[]>('/api/sources'),
+    create: (body: SourceInput) => request<SourceRun>('/api/sources', json('POST', body)),
+    run: (id: number) => request<SourceRun>(`/api/sources/${id}/run`, json('POST')),
+    runAll: () => request<SourceRun[]>('/api/sources/run-all', json('POST')),
+    remove: (id: number) => request<void>(`/api/sources/${id}`, json('DELETE')),
   },
   matching: {
     top: (minScore: number, includeTracked = false) =>

@@ -13,8 +13,8 @@ export default function Today() {
       title="Today"
       subtitle={new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
       actions={
-        <Link className="btn primary" to="/jobs">
-          + Add jobs
+        <Link className="btn primary" to="/sources">
+          ↻ Find jobs
         </Link>
       }
     />
@@ -58,7 +58,7 @@ export default function Today() {
           <Card title="Best new matches" actions={<Link to="/matching">Matching →</Link>}>
             {matches.length === 0 ? (
               <Empty>
-                No untracked matches above 50. <Link to="/jobs">Import jobs</Link> or update your{' '}
+                No untracked matches above 50. <Link to="/sources">Add job sources</Link> or update your{' '}
                 <Link to="/settings">skills</Link>.
               </Empty>
             ) : (

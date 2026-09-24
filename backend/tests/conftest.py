@@ -7,6 +7,7 @@ from pathlib import Path
 _tmp = Path(tempfile.mkdtemp(prefix="hiretrack-test-"))
 os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL") or f"sqlite:///{_tmp / 'test.db'}"
 os.environ["SEED_DEMO_DATA"] = "false"
+os.environ["AUTO_REFRESH_HOURS"] = "0"
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

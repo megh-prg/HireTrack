@@ -209,3 +209,25 @@ class PracticeLog(Base):
     quality: Mapped[int] = mapped_column(Integer)
     minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+
+
+class JobSource(Base):
+    """A saved feed: a company careers board or a search, re-run on refresh."""
+
+    __tablename__ = "job_sources"
+    __table_args__ = (UniqueConstraint("kind", "query", "location"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(String(20))  # greenhouse | lever | ashby | adzuna | remotive
+    query: Mapped[str] = mapped_column(String(200))  # company slug or search keywords
+    location: Mapped[str] = mapped_column(String(120), default="")
+    company_name: Mapped[str] = mapped_column(String(200), default="")
+    title_keywords: Mapped[str] = mapped_column(String(500), default="")
+    location_keywords: Mapped[str] = mapped_column(String(500), default="")
+    limit: Mapped[int] = mapped_column(Integer, default=100)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_found: Mapped[int] = mapped_column(Integer, default=0)
+    last_created: Mapped[int] = mapped_column(Integer, default=0)
+    last_error: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

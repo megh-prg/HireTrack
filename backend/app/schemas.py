@@ -101,9 +101,51 @@ class IngestResponse(BaseModel):
     created_ids: list[int]
 
 
-class RemotiveIngest(BaseModel):
-    search: str = Field("python", min_length=1, max_length=80)
-    limit: int = Field(30, ge=1, le=100)
+SourceKind = Literal["greenhouse", "lever", "ashby", "adzuna", "remotive"]
+
+
+class JobSourceCreate(BaseModel):
+    """Either paste a careers-page URL, or give kind + query (slug / search keywords)."""
+
+    url: str = ""
+    kind: SourceKind | None = None
+    query: str = Field("", max_length=200)
+    location: str = Field("", max_length=120)
+    company_name: str = Field("", max_length=200)
+    title_keywords: str = Field("", max_length=500)
+    location_keywords: str = Field("", max_length=500)
+    limit: int = Field(100, ge=1, le=500)
+
+
+class JobSourceUpdate(BaseModel):
+    company_name: str | None = None
+    title_keywords: str | None = None
+    location_keywords: str | None = None
+    limit: int | None = Field(None, ge=1, le=500)
+    enabled: bool | None = None
+
+
+class JobSourceRead(ORM):
+    id: int
+    kind: SourceKind
+    query: str
+    location: str
+    company_name: str
+    title_keywords: str
+    location_keywords: str
+    limit: int
+    enabled: bool
+    last_run_at: UTCDateTime | None
+    last_found: int
+    last_created: int
+    last_error: str
+
+
+class SourceRunResult(BaseModel):
+    source: JobSourceRead
+    found: int
+    created: int
+    duplicates: int
 
 
 # ---------------------------------------------------------------- matching

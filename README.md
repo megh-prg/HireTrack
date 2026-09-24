@@ -1,6 +1,6 @@
 # HireTrack
 
-**A full-stack job search and interview preparation platform.** HireTrack pulls in job postings, scores each one against your skills, tracks every application through the hiring pipeline, reminds you when to follow up with recruiters, and drills you on DSA and interview questions with spaced repetition. It puts extra weight on the skills your target jobs ask for that you don't have yet.
+**A full-stack job search and interview preparation platform.** HireTrack pulls in real job postings from company careers boards and job APIs, scores each one against your skills, tracks every application through the hiring pipeline, reminds you when to follow up with recruiters, and drills you on DSA and interview questions with spaced repetition. It puts extra weight on the skills your target jobs ask for that you don't have yet.
 
 `Python` · `FastAPI` · `SQLAlchemy 2` · `PostgreSQL` · `React 19` · `TypeScript` · `Vite` · `Docker` · `GitHub Actions`
 
@@ -12,7 +12,7 @@
 
 | Module | What it does |
 | --- | --- |
-| **Jobs** | Add postings by hand, pull live remote jobs from the [Remotive API](https://remotive.com/api-documentation), or upload a CSV/JSON file. HTML is cleaned, skills are extracted, and duplicates across sources are dropped using a normalised fingerprint. |
+| **Jobs** | Real openings from **job sources** you save (see below), CSV/JSON uploads, or manual entry. HTML is cleaned, skills are extracted, and duplicates across sources are dropped using a normalised fingerprint. Saved sources refresh automatically every 12 hours. |
 | **Matching** | Every job gets an explainable 0–100 score: 55% skill coverage, 30% title fit, and 15% location fit. Remote jobs limited to regions you didn't list score lower on location. Senior roles score lower if you have less experience. You can paste any job description to check your fit without saving it. The **skill-gap report** lists the skills missing most often from jobs you otherwise fit. |
 | **Applications** | Kanban board from Saved to Offer. Every stage change is logged, and a follow-up date is set automatically (7 days after applying, 3 after a recruiter screen, and so on). |
 | **Recruiters** | Referral and outreach tracker. Moving a contact to *Contacted* schedules a follow-up in 5 days. |
@@ -21,11 +21,28 @@
 | **Follow-ups** | One list of overdue and upcoming nudges, with snooze and done actions. |
 | **Progress** | Pipeline funnel, response and interview rates, applications per week, weekly goals, practice streak, DSA coverage and prep mastery. |
 
+### Where the jobs come from
+
+HireTrack uses only official, public APIs. Nothing is scraped.
+
+| Source | What it gives you | Setup |
+| --- | --- | --- |
+| **Greenhouse / Lever / Ashby** | A company's own careers board. These three systems run the careers pages of most startups, e.g. Sarvam AI, Databricks, Meesho, Zeta, Atlan, Groww, CRED | Paste the careers-board URL (`jobs.lever.co/meesho`) |
+| **Adzuna** | Listings aggregated from Indian job sites, searchable by keyword and city | Free key from [developer.adzuna.com](https://developer.adzuna.com): set `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` |
+| **Remotive** | Remote-only roles worldwide | None |
+| **CSV / JSON upload** | Anything without an API (LinkedIn, Naukri, Instahyre…): keep a spreadsheet and upload it | None |
+
+![Job sources](docs/screenshots/sources.png)
+
+Each source has title and location filters, so a company board with 800 openings only brings in, say, engineering roles in India. Follow-ups are never imported; they're created from your own actions (applying, moving a stage, messaging a recruiter).
+
 | Matching & skill gaps | Application pipeline |
 | --- | --- |
 | ![Matching](docs/screenshots/matching.png) | ![Applications](docs/screenshots/applications.png) |
-| **Interview prep** | **Progress** |
-| ![Prep](docs/screenshots/prep.png) | ![Progress](docs/screenshots/progress.png) |
+| **Real jobs, scored** | **Interview prep** |
+| ![Jobs](docs/screenshots/jobs.png) | ![Prep](docs/screenshots/prep.png) |
+| **Progress** | |
+| ![Progress](docs/screenshots/progress.png) | |
 
 ## Quick start
 
@@ -38,7 +55,7 @@ docker compose up --build
 - App: http://localhost:3000
 - API docs (Swagger): http://localhost:8000/docs
 
-This starts PostgreSQL, the FastAPI backend and the React frontend (served by nginx). Demo data is loaded on first start; set `SEED_DEMO_DATA=false` to start empty.
+This starts PostgreSQL, the FastAPI backend and the React frontend (served by nginx). The app starts empty. Open **Job sources** to add companies (one-click suggestions included), then set your skills in **Profile & goals**. To try it with sample data, run `SEED_DEMO_DATA=true docker compose up`. For Adzuna, put `ADZUNA_APP_ID=…` and `ADZUNA_APP_KEY=…` in a `.env` file next to `docker-compose.yml`.
 
 ### Local development
 
@@ -74,7 +91,8 @@ HireTrack
 ├── backend/                 FastAPI service
 │   ├── app/
 │   │   ├── database/        SQLAlchemy engine, session, models (PostgreSQL / SQLite)
-│   │   ├── jobs/            ingestion, de-duplication, skill extraction, matching
+│   │   ├── jobs/            sources (Greenhouse, Lever, Ashby, Adzuna, Remotive), ingestion,
+│   │   │                    de-duplication, skill extraction, matching
 │   │   ├── routers/         REST endpoints, one module per feature
 │   │   ├── services/        spaced-repetition scheduling
 │   │   ├── schemas.py       Pydantic request/response models
@@ -100,7 +118,8 @@ HireTrack
 | Endpoint | Purpose |
 | --- | --- |
 | `GET/PUT /api/profile` | Target roles, skills, locations, weekly goals (saving rescores all jobs) |
-| `GET/POST /api/jobs`, `POST /api/jobs/upload`, `POST /api/jobs/ingest/remotive` | Job list and ingestion |
+| `GET/POST /api/jobs`, `POST /api/jobs/upload` | Job list, manual add, file import |
+| `GET/POST/PATCH/DELETE /api/sources`, `POST /api/sources/{id}/run`, `POST /api/sources/run-all` | Saved job sources and refresh |
 | `GET /api/matching`, `POST /api/matching/analyze`, `GET /api/matching/skill-gaps` | Scores, ad-hoc JD analysis, gaps |
 | `GET/POST/PATCH /api/applications` | Pipeline with stage history |
 | `GET/POST/PATCH /api/recruiters` | Outreach tracker |
@@ -116,6 +135,6 @@ Full interactive docs are at `/docs` when the backend is running.
 - [ ] Authentication and multiple users (OAuth2 + JWT)
 - [ ] LLM features: tailored résumé bullets and mock-interview feedback per job description
 - [ ] Embedding-based semantic matching alongside keyword matching
-- [ ] Scheduled ingestion (Celery beat) and email digests for new high-match jobs
+- [ ] Email digests for new high-match jobs
 - [ ] Alembic migrations
 - [ ] Gmail/Calendar integration to log recruiter replies and interviews automatically

@@ -1,6 +1,4 @@
-import httpx
-
-from app.jobs.ingestion import fetch_remotive, fingerprint, parse_upload, strip_html
+from app.jobs.ingestion import fingerprint, parse_upload, strip_html
 from app.jobs.skills import canonicalize, extract_skills
 
 
@@ -66,31 +64,6 @@ def test_upload_csv(client, profile):
 def test_parse_upload_json():
     jobs = parse_upload("x.json", b'{"jobs": [{"role": "Dev", "company_name": "Z", "tags": "python, sql"}]}')
     assert jobs[0].title == "Dev" and jobs[0].tags == ["python", "sql"]
-
-
-def test_fetch_remotive_with_mock_transport(client, profile, monkeypatch):
-    payload = {
-        "jobs": [
-            {
-                "id": 1,
-                "title": "Python Developer",
-                "company_name": "Remote Co",
-                "candidate_required_location": "India",
-                "url": "https://remotive.com/1",
-                "description": "<p>Python, FastAPI and AWS</p>",
-                "tags": ["python"],
-                "publication_date": "2026-09-01T10:00:00",
-            }
-        ]
-    }
-    transport = httpx.MockTransport(lambda request: httpx.Response(200, json=payload))
-    jobs = fetch_remotive("python", client=httpx.Client(transport=transport))
-    assert jobs[0].company == "Remote Co" and jobs[0].remote
-
-    monkeypatch.setattr("app.routers.jobs.fetch_remotive", lambda search, limit: jobs)
-    first = client.post("/api/jobs/ingest/remotive", json={"search": "python"}).json()
-    second = client.post("/api/jobs/ingest/remotive", json={"search": "python"}).json()
-    assert (first["created"], second["duplicates"]) == (1, 1)
 
 
 def test_analyze_and_skill_gaps(client, profile):

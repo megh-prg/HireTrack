@@ -9,11 +9,9 @@ import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
 
-import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.config import get_settings
 from app.database.models import Job, Profile
 from app.jobs.matching import apply_match
 from app.jobs.skills import extract_skills
@@ -95,50 +93,16 @@ def upsert_jobs(db: Session, items: list[JobCreate], source: str) -> IngestResul
     return result
 
 
-# ---------------------------------------------------------------- sources
+# ---------------------------------------------------------------- file uploads
 
 
-def _parse_date(value: str | None) -> date | None:
+def parse_date(value: str | None) -> date | None:
     if not value:
         return None
     try:
         return datetime.fromisoformat(value.replace("Z", "+00:00")).date()
     except ValueError:
         return None
-
-
-def fetch_remotive(search: str, limit: int = 50, client: httpx.Client | None = None) -> list[JobCreate]:
-    """Remote jobs from Remotive's public API (https://remotive.com/api-documentation).
-
-    Their terms ask callers to link back to the posting and to poll at most a few times a day.
-    """
-    owns_client = client is None
-    client = client or httpx.Client(timeout=20)
-    try:
-        response = client.get(get_settings().remotive_url, params={"search": search, "limit": limit})
-        response.raise_for_status()
-        payload = response.json()
-    finally:
-        if owns_client:
-            client.close()
-
-    jobs = []
-    for raw in payload.get("jobs", [])[:limit]:
-        jobs.append(
-            JobCreate(
-                title=raw.get("title", ""),
-                company=raw.get("company_name", ""),
-                location=raw.get("candidate_required_location") or "Remote",
-                remote=True,
-                salary=raw.get("salary") or "",
-                url=raw.get("url", ""),
-                description=raw.get("description", ""),
-                tags=raw.get("tags") or [],
-                external_id=str(raw.get("id", "")) or None,
-                posted_at=_parse_date(raw.get("publication_date")),
-            )
-        )
-    return [j for j in jobs if j.title and j.company]
 
 
 def parse_upload(filename: str, content: bytes) -> list[JobCreate]:
@@ -172,7 +136,7 @@ def parse_upload(filename: str, content: bytes) -> list[JobCreate]:
                 url=row.get("url") or row.get("link") or "",
                 description=row.get("description", ""),
                 tags=tags,
-                posted_at=_parse_date(row.get("posted_at")),
+                posted_at=parse_date(row.get("posted_at")),
             )
         )
     return jobs
