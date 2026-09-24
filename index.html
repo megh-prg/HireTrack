@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Job Hunt Command Center</title>
+<style>
+:root{--bg:#f6f7fb;--card:#fff;--text:#171923;--muted:#6b7280;--line:#e6e8ef;--accent:#635bff;--accent2:#8b5cf6;--green:#16a34a;--amber:#d97706;--red:#dc2626;--shadow:0 8px 30px rgba(22,27,45,.07)}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--text)}
+.app{display:flex;min-height:100vh}.side{width:235px;background:#11131a;color:#fff;padding:22px 14px;position:sticky;top:0;height:100vh}.brand{font-weight:800;font-size:18px;padding:0 10px 25px}.brand small{display:block;color:#9297a7;font-weight:500;font-size:11px;margin-top:5px}.nav button{width:100%;border:0;background:transparent;color:#c6c9d4;text-align:left;padding:11px 12px;border-radius:9px;margin:2px 0;cursor:pointer;font-size:14px}.nav button.active,.nav button:hover{background:#242733;color:#fff}.main{flex:1;padding:28px;max-width:1500px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}.top h1{font-size:26px;margin:0}.sub{color:var(--muted);font-size:13px;margin-top:5px}.actions{display:flex;gap:8px}.btn{border:1px solid var(--line);background:#fff;padding:9px 13px;border-radius:8px;cursor:pointer;font-weight:650}.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:13px;box-shadow:var(--shadow);padding:18px}.metric .label{font-size:12px;color:var(--muted)}.metric .num{font-size:28px;font-weight:800;margin-top:5px}.metric .hint{font-size:11px;color:var(--muted);margin-top:4px}.section{margin-top:18px}.section h2{font-size:16px;margin:0 0 11px}.cols{display:grid;grid-template-columns:1.35fr .85fr;gap:18px}.task{display:flex;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line);font-size:13px}.task:last-child{border-bottom:0}.task input{accent-color:var(--accent)}.progress{height:8px;background:#eceef4;border-radius:99px;overflow:hidden}.progress>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px}.job{border:1px solid var(--line);border-radius:10px;padding:13px;margin-bottom:9px}.jobhead{display:flex;justify-content:space-between;gap:10px}.jobtitle{font-weight:750}.company{font-size:12px;color:var(--muted);margin-top:3px}.pill{font-size:11px;padding:4px 8px;border-radius:999px;background:#f0efff;color:#5148d8;white-space:nowrap}.meta{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:9px}.row{display:flex;justify-content:space-between;align-items:center;gap:12px}.tablewrap{overflow:auto}.table{width:100%;border-collapse:collapse;font-size:13px}.table th,.table td{padding:12px 9px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}.table th{color:var(--muted);font-size:11px;text-transform:uppercase}.select,input[type=text],input[type=number],input[type=date],textarea{border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff;color:var(--text)}.select{padding:7px}.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.hidden{display:none}.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:20px}.modal.open{display:flex}.modalbox{background:#fff;border-radius:14px;padding:22px;width:min(520px,100%)}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.formgrid label{font-size:11px;color:var(--muted);display:flex;flex-direction:column;gap:5px}.full{grid-column:1/-1}.empty{padding:30px;text-align:center;color:var(--muted)}.badge{font-size:11px;padding:4px 7px;border-radius:6px;background:#f2f3f7}.days{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.day{border:1px solid var(--line);border-radius:9px;padding:10px;background:#fff;min-height:90px}.day b{font-size:11px}.day p{font-size:11px;color:var(--muted);margin:7px 0 0}.done{background:#eefbf2;border-color:#bce8c8}.danger{color:var(--red)}@media(max-width:900px){.side{display:none}.main{padding:16px}.grid4{grid-template-columns:repeat(2,1fr)}.cols{grid-template-columns:1fr}}@media(max-width:600px){.grid4{grid-template-columns:1fr}.formgrid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side">
+<div class="brand">Job Hunt Command Center<small>30-day sprint</small></div>
+<div class="nav">
+<button class="active" data-page="dashboard">⌂ Dashboard</button>
+<button data-page="jobs">▣ Job Tracker</button>
+<button data-page="prep">◈ Interview Prep</button>
+<button data-page="sprint">◷ 30-Day Sprint</button>
+<button data-page="contacts">◎ Recruiters</button>
+<button data-page="settings">⚙ Settings</button>
+</div>
+</aside>
+<main class="main">
+<div class="top">
+<div><h1 id="title">Job Hunt Command Center</h1><div class="sub" id="subtitle">AI Engineer · GenAI · Python Backend · Bengaluru / Remote India</div></div>
+<div class="actions"><button class="btn" onclick="resetDemo()">Reset demo</button><button class="btn primary" onclick="openModal()">+ Add job</button></div>
+</div>
+
+<section id="dashboard" class="page">
+<div class="grid4">
+<div class="card metric"><div class="label">Applications</div><div class="num" id="mApps">0</div><div class="hint">target: 60–80 in 15 days</div></div>
+<div class="card metric"><div class="label">Interviews</div><div class="num" id="mInterviews">0</div><div class="hint">track every stage</div></div>
+<div class="card metric"><div class="label">Responses</div><div class="num" id="mResponses">0</div><div class="hint">recruiter + HR + assessments</div></div>
+<div class="card metric"><div class="label">Offers</div><div class="num" id="mOffers">0</div><div class="hint">target: full-time</div></div>
+</div>
+<div class="cols section">
+<div class="card"><div class="row"><h2>Today's priorities</h2><span class="badge" id="todayLabel"></span></div><div id="tasks"></div></div>
+<div class="card"><h2>Sprint progress</h2><div class="row"><span class="sub">Overall</span><b id="overallPct">0%</b></div><div class="progress" style="margin:8px 0 15px"><i id="overallBar" style="width:0%"></i></div><div class="sub">Applications</div><div class="progress" style="margin:6px 0 12px"><i id="appBar"></i></div><div class="sub">Interview prep</div><div class="progress" style="margin:6px 0 12px"><i id="prepBar"></i></div><div class="sub">Networking</div><div class="progress" style="margin:6px 0 12px"><i id="netBar"></i></div></div>
+</div>
+<div class="section card"><div class="row"><h2>New / priority jobs</h2><button class="btn" onclick="showPage('jobs')">View tracker</button></div><div id="priorityJobs"></div></div>
+</section>
+
+<section id="jobs" class="page hidden">
+<div class="card">
+<div class="row"><h2>Job Tracker</h2><button class="btn primary" onclick="openModal()">+ Add job</button></div>
+<div class="filters"><input id="search" type="text" placeholder="Search company or role" oninput="renderJobs()"><select id="stageFilter" class="select" onchange="renderJobs()"><option value="">All stages</option><option>New</option><option>Applied</option><option>Recruiter</option><option>HR</option><option>Assessment</option><option>Technical</option><option>Final</option><option>Offer</option><option>Rejected</option></select></div>
+<div class="tablewrap"><table class="table"><thead><tr><th>Company</th><th>Role</th><th>Salary</th><th>Location</th><th>Stage</th><th>Applied</th><th>Follow-up</th><th></th></tr></thead><tbody id="jobTable"></tbody></table></div>
+</div>
+</section>
+
+<section id="prep" class="page hidden">
+<div class="grid4">
+<div class="card"><div class="label">Python</div><div class="num" id="pPython">0%</div><div class="progress"><i id="bPython"></i></div></div>
+<div class="card"><div class="label">FastAPI / Backend</div><div class="num" id="pBackend">0%</div><div class="progress"><i id="bBackend"></i></div></div>
+<div class="card"><div class="label">LLM / GenAI</div><div class="num" id="pLLM">0%</div><div class="progress"><i id="bLLM"></i></div></div>
+<div class="card"><div class="label">System Design</div><div class="num" id="pSystem">0%</div><div class="progress"><i id="bSystem"></i></div></div>
+</div>
+<div class="card section"><h2>Preparation checklist</h2><div id="prepTasks"></div></div>
+</section>
+
+<section id="sprint" class="page hidden">
+<div class="card"><h2>30-Day Plan</h2><p class="sub">The sprint moves from profile setup → applications → technical preparation → interview mode.</p><div class="days" id="days"></div></div>
+<div class="card section"><h2>Targets</h2><div class="tablewrap"><table class="table"><tbody>
+<tr><td>First 15 days</td><td>60–80 targeted applications</td></tr><tr><td>Recruiter outreach</td><td>30+ contacts</td></tr><tr><td>Referrals</td><td>10+ attempts</td></tr><tr><td>Technical preparation</td><td>20–25 hours</td></tr><tr><td>Mock interviews</td><td>3–5</td></tr>
+</tbody></table></div></div>
+</section>
+
+<section id="contacts" class="page hidden">
+<div class="card"><div class="row"><h2>Recruiter / Referral Tracker</h2><button class="btn" onclick="addContact()">+ Add contact</button></div><div class="tablewrap"><table class="table"><thead><tr><th>Name</th><th>Company</th><th>Role</th><th>Status</th><th>Next follow-up</th></tr></thead><tbody id="contactTable"></tbody></table></div></div>
+</section>
+
+<section id="settings" class="page hidden">
+<div class="card"><h2>Your job-search settings</h2><div class="formgrid">
+<label>Target roles<input id="settingRoles" type="text" value="AI Engineer, GenAI Engineer, AI Backend Engineer, Python Backend Engineer"></label>
+<label>Target salary<input id="settingSalary" type="text" value="₹7–12+ LPA"></label>
+<label class="full">Locations<input id="settingLocation" type="text" value="Bengaluru / Remote India"></label>
+</div><button class="btn primary" style="margin-top:12px" onclick="saveSettings()">Save</button></div>
+</section>
+</main></div>
+
+<div class="modal" id="modal"><div class="modalbox"><div class="row"><h2 style="margin:0">Add job</h2><button class="btn" onclick="closeModal()">×</button></div>
+<div class="formgrid" style="margin-top:15px">
+<label>Company<input id="fCompany" type="text"></label><label>Role<input id="fRole" type="text"></label>
+<label>Salary<input id="fSalary" type="text" placeholder="e.g. ₹8–12 LPA"></label><label>Location<input id="fLocation" type="text" value="Bengaluru"></label>
+<label>Stage<select id="fStage" class="select"><option>New</option><option>Applied</option><option>Recruiter</option><option>HR</option><option>Assessment</option><option>Technical</option><option>Final</option><option>Offer</option><option>Rejected</option></select></label>
+<label>Follow-up<input id="fFollow" type="date"></label><label class="full">Link<input id="fLink" type="text" placeholder="https://..."></label>
+</div><button class="btn primary" style="margin-top:15px;width:100%" onclick="saveJob()">Save job</button></div></div>
+
+<script>
+const KEY="job_hunt_cc_v1";
+const defaultState={
+jobs:[
+ {company:"Example AI",role:"AI Engineer",salary:"₹8–12 LPA",location:"Bengaluru",stage:"New",applied:"",follow:"",link:"#"},
+ {company:"Example Tech",role:"Python Backend Engineer",salary:"₹7–10 LPA",location:"Remote India",stage:"Applied",applied:new Date().toISOString().slice(0,10),follow:"",link:"#"}
+],
+contacts:[],
+tasks:[
+ ["Apply to 8–10 strong-fit roles",false],["Contact 5 recruiters / hiring managers",false],["Complete 45 min Python preparation",false],["Complete 45 min FastAPI/backend preparation",false],["Practice 30 min LLM/RAG questions",false],["Update application tracker before finishing",false]
+],
+prep:[
+ ["Python: async/await, generators, decorators",false],["FastAPI: DI, middleware, auth, async endpoints",false],["SQL: joins, indexes, transactions",false],["Redis + Celery + retry/backoff",false],["LLM: RAG, embeddings, grounding",false],["LLM evaluation + hallucination checks",false],["System design: scalable LLM API",false],["Behavioral: tell me about yourself + why leaving",false]
+],
+settings:{roles:"AI Engineer, GenAI Engineer, AI Backend Engineer, Python Backend Engineer",salary:"₹7–12+ LPA",location:"Bengaluru / Remote India"}
+};
+let state=JSON.parse(localStorage.getItem(KEY)||"null")||defaultState;
+function save(){localStorage.setItem(KEY,JSON.stringify(state));render()}
+function showPage(id){document.querySelectorAll(".page").forEach(x=>x.classList.add("hidden"));document.getElementById(id).classList.remove("hidden");document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===id));let titles={dashboard:"Job Hunt Command Center",jobs:"Job Tracker",prep:"Interview Preparation",sprint:"30-Day Sprint",contacts:"Recruiters & Referrals",settings:"Settings"};document.getElementById("title").textContent=titles[id];}
+document.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>showPage(b.dataset.page));
+function render(){
+ const apps=state.jobs.filter(j=>["Applied","Recruiter","HR","Assessment","Technical","Final","Offer"].includes(j.stage)).length;
+ const interviews=state.jobs.filter(j=>["Technical","Final","Offer"].includes(j.stage)).length;
+ const responses=state.jobs.filter(j=>["Recruiter","HR","Assessment","Technical","Final","Offer"].includes(j.stage)).length;
+ const offers=state.jobs.filter(j=>j.stage==="Offer").length;
+ document.getElementById("mApps").textContent=apps;document.getElementById("mInterviews").textContent=interviews;document.getElementById("mResponses").textContent=responses;document.getElementById("mOffers").textContent=offers;
+ document.getElementById("todayLabel").textContent=new Date().toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});
+ document.getElementById("tasks").innerHTML=state.tasks.map((t,i)=>`<div class="task"><input type="checkbox" ${t[1]?"checked":""} onchange="toggleTask(${i})"><span>${t[0]}</span></div>`).join("");
+ const done=state.tasks.filter(t=>t[1]).length; const prepDone=state.prep.filter(t=>t[1]).length;
+ const overall=Math.round(((Math.min(apps/60,1)+done/state.tasks.length+prepDone/state.prep.length)/3)*100);
+ document.getElementById("overallPct").textContent=overall+"%";document.getElementById("overallBar").style.width=overall+"%";
+ document.getElementById("appBar").style.width=Math.min(apps/60,1)*100+"%";document.getElementById("prepBar").style.width=prepDone/state.prep.length*100+"%";document.getElementById("netBar").style.width=Math.min(state.contacts.length/30,1)*100+"%";
+ document.getElementById("priorityJobs").innerHTML=state.jobs.slice(0,5).map(jobCard).join("")||'<div class="empty">Add your first job.</div>';
+ renderJobs();renderPrep();renderContacts();renderDays();
+}
+function jobCard(j){return `<div class="job"><div class="jobhead"><div><div class="jobtitle">${esc(j.role)}</div><div class="company">${esc(j.company)}</div></div><span class="pill">${esc(j.stage)}</span></div><div class="meta"><span>${esc(j.salary||"Salary not listed")}</span><span>${esc(j.location||"")}</span>${j.follow?`<span>Follow-up: ${j.follow}</span>`:""}</div></div>`}
+function renderJobs(){
+ const q=(document.getElementById("search")?.value||"").toLowerCase(), sf=document.getElementById("stageFilter")?.value||"";
+ const arr=state.jobs.filter(j=>(!q||(j.company+j.role).toLowerCase().includes(q))&&(!sf||j.stage===sf));
+ document.getElementById("jobTable").innerHTML=arr.map((j)=>{let idx=state.jobs.indexOf(j);return `<tr><td><b>${esc(j.company)}</b></td><td>${esc(j.role)}</td><td>${esc(j.salary||"—")}</td><td>${esc(j.location||"—")}</td><td><select class="select" onchange="changeStage(${idx},this.value)">${["New","Applied","Recruiter","HR","Assessment","Technical","Final","Offer","Rejected"].map(s=>`<option ${j.stage===s?"selected":""}>${s}</option>`).join("")}</select></td><td>${j.applied||"—"}</td><td>${j.follow||"—"}</td><td><button class="btn" onclick="deleteJob(${idx})">Delete</button></td></tr>`}).join("")||'<tr><td colspan="8" class="empty">No jobs found.</td></tr>';
+}
+function renderPrep(){let names=["Python","Backend","LLM","System"];let vals=[38,42,50,30];names.forEach((n,i)=>{document.getElementById("p"+n).textContent=vals[i]+"%";document.getElementById("b"+n).style.width=vals[i]+"%"});document.getElementById("prepTasks").innerHTML=state.prep.map((t,i)=>`<div class="task"><input type="checkbox" ${t[1]?"checked":""} onchange="togglePrep(${i})"><span>${t[0]}</span></div>`).join("")}
+function renderDays(){const today=new Date();let start=new Date(today);start.setHours(0,0,0,0);let arr=[];for(let i=0;i<30;i++){let d=new Date(start);d.setDate(start.getDate()+i);let phase=i<3?"Profile":i<7?"Launch":i<15?"Applications + Prep":"Interview mode";arr.push(`<div class="day ${i===0?"done":""}"><b>Day ${i+1}</b><p>${phase}</p><p>${d.toLocaleDateString(undefined,{month:"short",day:"numeric"})}</p></div>`)}document.getElementById("days").innerHTML=arr.join("")}
+function renderContacts(){document.getElementById("contactTable").innerHTML=state.contacts.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(c.company)}</td><td>${esc(c.role)}</td><td>${esc(c.status)}</td><td>${esc(c.follow||"—")}</td></tr>`).join("")||'<tr><td colspan="5" class="empty">No contacts yet.</td></tr>'}
+function toggleTask(i){state.tasks[i][1]=!state.tasks[i][1];save()}function togglePrep(i){state.prep[i][1]=!state.prep[i][1];save()}
+function changeStage(i,v){state.jobs[i].stage=v;save()}function deleteJob(i){if(confirm("Delete this job?")){state.jobs.splice(i,1);save()}}
+function openModal(){document.getElementById("modal").classList.add("open")}function closeModal(){document.getElementById("modal").classList.remove("open")}
+function saveJob(){let j={company:v("fCompany"),role:v("fRole"),salary:v("fSalary"),location:v("fLocation"),stage:v("fStage"),applied:v("fStage")==="Applied"?new Date().toISOString().slice(0,10):"",follow:v("fFollow"),link:v("fLink")};if(!j.company||!j.role)return alert("Company and role are required.");state.jobs.unshift(j);closeModal();document.querySelectorAll("#modal input").forEach(x=>x.value="");save()}
+function addContact(){let name=prompt("Recruiter / contact name");if(!name)return;let company=prompt("Company")||"";let role=prompt("Role")||"";state.contacts.push({name,company,role,status:"Contacted",follow:""});save()}
+function saveSettings(){state.settings={roles:v("settingRoles"),salary:v("settingSalary"),location:v("settingLocation")};alert("Saved.");}
+function resetDemo(){if(confirm("Reset dashboard data?")){localStorage.removeItem(KEY);location.reload()}}
+function v(id){return document.getElementById(id).value.trim()}function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+render();
+</script>
+</body>
+</html>
