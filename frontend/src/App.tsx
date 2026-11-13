@@ -6,6 +6,7 @@ import DSA from './pages/DSA'
 import FollowUps from './pages/FollowUps'
 import Jobs from './pages/Jobs'
 import Matching from './pages/Matching'
+import Optimizer from './pages/Optimizer'
 import Prep from './pages/Prep'
 import ProgressPage from './pages/Progress'
 import Recruiters from './pages/Recruiters'
@@ -18,12 +19,13 @@ const NAV = [
   { to: '/', label: 'Today', icon: '⌂' },
   { to: '/jobs', label: 'Jobs', icon: '1' },
   { to: '/matching', label: 'Matching', icon: '2' },
-  { to: '/applications', label: 'Applications', icon: '3' },
-  { to: '/recruiters', label: 'Recruiters', icon: '4' },
-  { to: '/dsa', label: 'DSA', icon: '5' },
-  { to: '/prep', label: 'Interview Prep', icon: '6' },
-  { to: '/followups', label: 'Follow-ups', icon: '7' },
-  { to: '/progress', label: 'Progress', icon: '8' },
+  { to: '/optimizer', label: 'Resume', icon: '3' },
+  { to: '/applications', label: 'Applications', icon: '4' },
+  { to: '/recruiters', label: 'Recruiters', icon: '5' },
+  { to: '/dsa', label: 'DSA', icon: '6' },
+  { to: '/prep', label: 'Interview Prep', icon: '7' },
+  { to: '/followups', label: 'Follow-ups', icon: '8' },
+  { to: '/progress', label: 'Progress', icon: '9' },
 ]
 
 type Theme = 'light' | 'dark' | 'system'
@@ -101,6 +103,7 @@ function Shell() {
           <Route path="/" element={<Today />} />
           <Route path="/jobs" element={<Jobs />} />
           <Route path="/matching" element={<Matching />} />
+          <Route path="/optimizer" element={<Optimizer />} />
           <Route path="/applications" element={<Applications />} />
           <Route path="/recruiters" element={<Recruiters />} />
           <Route path="/dsa" element={<DSA />} />

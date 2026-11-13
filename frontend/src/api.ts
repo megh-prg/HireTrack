@@ -206,6 +206,31 @@ export interface Progress {
   skill_gaps: SkillGap[]
 }
 
+export interface OptimizedResume {
+  summary?: string
+  skills?: string[]
+  experience?: string[]
+  projects?: string[]
+}
+
+export interface ResumeState {
+  resume_text: string
+  sections_present: string[]
+  sections_missing: string[]
+}
+
+export interface Optimization {
+  job_id: number
+  score_before: number
+  score_after: number | null
+  missing_keywords: string[]
+  optimized_resume: OptimizedResume | null
+  unsupported_claims: string[]
+  is_grounded: boolean | null
+  ai_available: boolean
+  created_at: string
+}
+
 export class ApiError extends Error {
   status: number
   constructor(status: number, message: string) {
@@ -276,6 +301,21 @@ export const api = {
       request<Analysis>('/api/matching/analyze', json('POST', body)),
     gaps: () => request<SkillGap[]>('/api/matching/skill-gaps'),
     recompute: () => request<{ rescored: number }>('/api/matching/recompute', json('POST')),
+  },
+  resume: {
+    get: () => request<ResumeState>('/api/resume'),
+    save: (resume_text: string) => request<ResumeState>('/api/resume', json('PUT', { resume_text })),
+    upload: (file: File) => {
+      const body = new FormData()
+      body.append('file', file)
+      return request<ResumeState>('/api/resume/upload', { method: 'POST', body })
+    },
+  },
+  optimizer: {
+    run: (jobId: number) => request<Optimization>(`/api/jobs/${jobId}/optimize`, json('POST')),
+    get: (jobId: number) => request<Optimization>(`/api/jobs/${jobId}/optimization`),
+    downloadUrl: (jobId: number, fmt: 'pdf' | 'docx') =>
+      `${BASE}/api/jobs/${jobId}/optimization/download?fmt=${fmt}`,
   },
   applications: {
     list: () => request<Application[]>('/api/applications'),

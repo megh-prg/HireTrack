@@ -111,9 +111,14 @@ export default function Matching() {
                 {job.missing_skills.map((s) => <Chip key={s} tone="danger">{s}</Chip>)}
               </div>
             </div>
-            <button className="btn small" onClick={() => track(job.id)}>
-              Track
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Link className="btn small" to={`/optimizer?job=${job.id}`}>
+                Optimize
+              </Link>
+              <button className="btn small" onClick={() => track(job.id)}>
+                Track
+              </button>
+            </div>
           </div>
         ))}
       </Card>
