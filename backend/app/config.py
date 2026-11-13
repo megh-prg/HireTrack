@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     app_name: str = "HireTrack API"
     database_url: str = "sqlite:///./hiretrack.db"
     cors_origins: str = "http://localhost:5173"
+    # Also allow the deployed frontend (and its Vercel preview URLs) without
+    # having to hard-code the exact hostname.
+    cors_origin_regex: str = r"https://hire-track[a-z0-9-]*\.vercel\.app"
     prep_dir: Path = REPO_ROOT / "prep"
     # Demo rows are off by default so the app only ever shows your real data.
     seed_demo_data: bool = False
