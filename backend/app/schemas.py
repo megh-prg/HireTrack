@@ -171,6 +171,31 @@ class SkillGap(BaseModel):
     track: str | None
 
 
+# ---------------------------------------------------------------- resume optimizer
+
+
+class ResumeIn(BaseModel):
+    resume_text: str = Field("", max_length=60000)
+
+
+class ResumeRead(BaseModel):
+    resume_text: str
+    sections_present: list[str] = []
+    sections_missing: list[str] = []
+
+
+class OptimizationRead(ORM):
+    job_id: int
+    score_before: float
+    score_after: float | None
+    missing_keywords: list[str]
+    optimized_resume: dict | None
+    unsupported_claims: list[str]
+    is_grounded: bool | None
+    ai_available: bool
+    created_at: UTCDateTime
+
+
 # ---------------------------------------------------------------- applications
 
 

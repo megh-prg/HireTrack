@@ -13,6 +13,7 @@ from app.routers import (
     followups,
     jobs,
     matching,
+    optimizer,
     prep,
     profile,
     progress,
@@ -71,7 +72,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for module in (profile, jobs, sources, matching, applications, recruiters, dsa, prep, followups, progress):
+for module in (profile, jobs, sources, matching, optimizer, applications, recruiters, dsa, prep, followups, progress):
     app.include_router(module.router)
 
 

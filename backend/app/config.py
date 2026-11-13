@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     adzuna_country: str = "in"
     # Re-run saved job sources in the background every N hours (0 = only when you click Refresh).
     auto_refresh_hours: float = 12
+    # Resume optimizer: get a free key at https://aistudio.google.com/apikey.
+    # Without a key the optimizer still scores resumes and lists missing keywords
+    # (deterministic); the AI rewrite is only enabled once a key is set.
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-flash-lite-latest"
+    max_upload_bytes: int = 5 * 1024 * 1024
 
     @property
     def cors_origin_list(self) -> list[str]:

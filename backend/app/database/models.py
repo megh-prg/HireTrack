@@ -73,6 +73,8 @@ class Profile(Base):
     weekly_application_goal: Mapped[int] = mapped_column(Integer, default=25)
     weekly_dsa_goal: Mapped[int] = mapped_column(Integer, default=15)
     weekly_outreach_goal: Mapped[int] = mapped_column(Integer, default=10)
+    # Base resume text the optimizer tailors to each job (pasted or uploaded).
+    resume_text: Mapped[str] = mapped_column(Text, default="")
 
 
 class Job(Base):
@@ -209,6 +211,25 @@ class PracticeLog(Base):
     quality: Mapped[int] = mapped_column(Integer)
     minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+
+
+class ResumeOptimization(Base):
+    """The latest resume-vs-job optimization for one job (one row per job)."""
+
+    __tablename__ = "resume_optimizations"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    job_id: Mapped[int] = mapped_column(
+        ForeignKey("jobs.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    score_before: Mapped[float] = mapped_column(Float, default=0)
+    score_after: Mapped[float | None] = mapped_column(Float, nullable=True)
+    missing_keywords: Mapped[list[str]] = mapped_column(JSON, default=list)
+    optimized_resume: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    unsupported_claims: Mapped[list[str]] = mapped_column(JSON, default=list)
+    is_grounded: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    ai_available: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
 class JobSource(Base):
