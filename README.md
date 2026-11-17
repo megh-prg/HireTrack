@@ -1,19 +1,22 @@
 # HireTrack
 
-**A full-stack job search and interview preparation platform.** HireTrack pulls in real job postings from company careers boards and job APIs, scores each one against your skills, tracks every application through the hiring pipeline, reminds you when to follow up with recruiters, and drills you on DSA and interview questions with spaced repetition. It puts extra weight on the skills your target jobs ask for that you don't have yet.
+**A full-stack job search and interview preparation platform.** HireTrack pulls in real job postings from company careers boards and job APIs, scores each one against your skills, tailors your résumé to each job and keeps the rewrite honest, tracks every application through the hiring pipeline, reminds you when to follow up with recruiters, and drills you on DSA and interview questions with spaced repetition. It puts extra weight on the skills your target jobs ask for that you don't have yet.
 
-`Python` · `FastAPI` · `SQLAlchemy 2` · `PostgreSQL` · `React 19` · `TypeScript` · `Vite` · `Docker` · `GitHub Actions`
+`Python` · `FastAPI` · `SQLAlchemy 2` · `PostgreSQL` · `React 19` · `TypeScript` · `Vite` · `Gemini` · `Docker` · `GitHub Actions`
+
+**Live demo:** [hire-track-bay.vercel.app](https://hire-track-bay.vercel.app) — the free backend sleeps when idle, so the first load can take ~50s to wake.
 
 ![Today dashboard](docs/screenshots/today.png)
 
 ## The workflow
 
-**Jobs → Matching → Applications → Recruiters → DSA → Interview Prep → Follow-ups → Progress**
+**Jobs → Matching → Résumé → Applications → Recruiters → DSA → Interview Prep → Follow-ups → Progress**
 
 | Module | What it does |
 | --- | --- |
 | **Jobs** | Real openings from **job sources** you save (see below), CSV/JSON uploads, or manual entry. HTML is cleaned, skills are extracted, and duplicates across sources are dropped using a normalised fingerprint. Saved sources refresh automatically every 12 hours. |
 | **Matching** | Every job gets an explainable 0–100 score: 55% skill coverage, 30% title fit, and 15% location fit. Remote jobs limited to regions you didn't list score lower on location. Senior roles score lower if you have less experience. You can paste any job description to check your fit without saving it. The **skill-gap report** lists the skills missing most often from jobs you otherwise fit. |
+| **Résumé** | Tailors your résumé to a chosen job: an explainable ATS score, the keywords the job asks for that you're missing, and an AI rewrite (Google Gemini). A grounding step checks every rewritten line against your original résumé and strips anything it can't support, so it never invents experience — unsupported claims are reported, not published. Works without an API key too: you still get the score and keyword gaps. Export the result as PDF or DOCX. |
 | **Applications** | Kanban board from Saved to Offer. Every stage change is logged, and a follow-up date is set automatically (7 days after applying, 3 after a recruiter screen, and so on). |
 | **Recruiters** | Referral and outreach tracker. Moving a contact to *Contacted* schedules a follow-up in 5 days. |
 | **DSA** | 52 core problems grouped by pattern. Rate each attempt, and a spaced-repetition schedule (1 → 3 → 7 → 14 → 30 → 60 days) brings weak problems back sooner. |
@@ -55,7 +58,7 @@ docker compose up --build
 - App: http://localhost:3000
 - API docs (Swagger): http://localhost:8000/docs
 
-This starts PostgreSQL, the FastAPI backend and the React frontend (served by nginx). The app starts empty. Open **Job sources** to add companies (one-click suggestions included), then set your skills in **Profile & goals**. To try it with sample data, run `SEED_DEMO_DATA=true docker compose up`. For Adzuna, put `ADZUNA_APP_ID=…` and `ADZUNA_APP_KEY=…` in a `.env` file next to `docker-compose.yml`.
+This starts PostgreSQL, the FastAPI backend and the React frontend (served by nginx). The app starts empty. Open **Job sources** to add companies (one-click suggestions included), then set your skills in **Profile & goals**. To try it with sample data, run `SEED_DEMO_DATA=true docker compose up`. For Adzuna, put `ADZUNA_APP_ID=…` and `ADZUNA_APP_KEY=…` in a `.env` file next to `docker-compose.yml`. The résumé optimizer's AI rewrite uses a free Gemini key: set `GEMINI_API_KEY` (from [aistudio.google.com/apikey](https://aistudio.google.com/apikey)); without it you still get the ATS score and keyword gaps.
 
 ### Local development
 
@@ -121,6 +124,7 @@ HireTrack
 | `GET/POST /api/jobs`, `POST /api/jobs/upload` | Job list, manual add, file import |
 | `GET/POST/PATCH/DELETE /api/sources`, `POST /api/sources/{id}/run`, `POST /api/sources/run-all` | Saved job sources and refresh |
 | `GET /api/matching`, `POST /api/matching/analyze`, `GET /api/matching/skill-gaps` | Scores, ad-hoc JD analysis, gaps |
+| `GET/PUT /api/resume`, `POST /api/resume/upload`, `POST /api/jobs/{id}/optimize` | Résumé storage, ATS score and grounded AI rewrite per job |
 | `GET/POST/PATCH /api/applications` | Pipeline with stage history |
 | `GET/POST/PATCH /api/recruiters` | Outreach tracker |
 | `GET /api/dsa`, `POST /api/dsa/{id}/practice` | DSA list and practice log |
@@ -133,7 +137,8 @@ Full interactive docs are at `/docs` when the backend is running.
 ## Roadmap
 
 - [ ] Authentication and multiple users (OAuth2 + JWT)
-- [ ] LLM features: tailored résumé bullets and mock-interview feedback per job description
+- [x] LLM résumé tailoring per job, grounded against your real experience
+- [ ] LLM mock-interview feedback per job description
 - [ ] Embedding-based semantic matching alongside keyword matching
 - [ ] Email digests for new high-match jobs
 - [ ] Alembic migrations
