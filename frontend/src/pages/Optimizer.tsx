@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { api, type Optimization, type OptimizedResume } from '../api'
+import { Link, useSearchParams } from 'react-router-dom'
+import { api, type BuildProfileResult, type Optimization, type OptimizedResume } from '../api'
 import { Card, Chip, Empty, Field, PageHeader, Score, Status } from '../components/ui'
 import { useApi } from '../hooks'
 
@@ -47,6 +47,7 @@ export default function Optimizer() {
   const [sections, setSections] = useState<{ present: string[]; missing: string[] }>({ present: [], missing: [] })
   const [jobId, setJobId] = useState<number | null>(null)
   const [result, setResult] = useState<Optimization | null>(null)
+  const [profileResult, setProfileResult] = useState<BuildProfileResult | null>(null)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
 
@@ -88,6 +89,18 @@ export default function Optimizer() {
       setSavedText(r.resume_text)
       setSections({ present: r.sections_present, missing: r.sections_missing })
       setMsg('Resume uploaded.')
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const buildProfile = async () => {
+    setBusy(true)
+    setMsg(null)
+    try {
+      setProfileResult(await api.resume.buildProfile())
     } catch (e) {
       setMsg(e instanceof Error ? e.message : String(e))
     } finally {
@@ -150,6 +163,31 @@ export default function Optimizer() {
               />
             </label>
             {msg && <span className="small muted">{msg}</span>}
+          </div>
+
+          <div style={{ marginTop: 14, borderTop: '1px solid rgba(128,128,128,0.25)', paddingTop: 12 }}>
+            <p className="small muted" style={{ marginTop: 0 }}>
+              New here? Build your skill profile straight from your résumé — works for any tech stack.
+            </p>
+            <button className="btn" disabled={busy || !savedText.trim()} onClick={buildProfile}>
+              {busy ? 'Reading your résumé…' : 'Build my profile & match jobs'}
+            </button>
+            {profileResult && (
+              <div style={{ marginTop: 10 }}>
+                <div className="sub">
+                  Added {profileResult.skills.length} skill{profileResult.skills.length === 1 ? '' : 's'} · matched{' '}
+                  {profileResult.matched} job{profileResult.matched === 1 ? '' : 's'}
+                </div>
+                <div className="chips" style={{ marginTop: 4 }}>
+                  {profileResult.skills.slice(0, 24).map((s) => (
+                    <Chip key={s} tone="good">{s}</Chip>
+                  ))}
+                </div>
+                <div style={{ marginTop: 8 }}>
+                  <Link className="btn small" to="/matching">View matched jobs →</Link>
+                </div>
+              </div>
+            )}
           </div>
         </Card>
 

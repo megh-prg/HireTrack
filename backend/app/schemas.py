@@ -184,6 +184,14 @@ class ResumeRead(BaseModel):
     sections_missing: list[str] = []
 
 
+class BuildProfileResult(BaseModel):
+    skills: list[str]
+    roles: list[str]
+    rescored: int
+    matched: int
+    source: str  # "ai" or "fallback"
+
+
 class OptimizationRead(ORM):
     job_id: int
     score_before: float

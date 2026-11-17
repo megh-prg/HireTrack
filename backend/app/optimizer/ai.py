@@ -111,3 +111,29 @@ def extract_jd_keywords(job_description: str) -> dict:
 
 def generate_optimized_resume(resume_text: str, job_description: str) -> dict:
     return _generate_json(OPTIMIZE_PROMPT.format(resume_text=resume_text, job_description=job_description))
+
+
+PROFILE_PROMPT = """
+You are a resume parser. From the resume below, extract the candidate's technical skills
+and the job titles they are a good fit for. Cover ANY tech stack, not just one (e.g. Java,
+.NET, Go, data, DevOps, mobile), based on what the resume actually shows.
+
+Return a valid JSON object exactly like:
+{{
+  "skills": ["skill1", "skill2"],
+  "roles": ["role1", "role2"]
+}}
+
+Skills are concise and lowercase (languages, frameworks, tools, databases, cloud, concepts).
+Roles are normal job titles. Return only JSON.
+
+Resume:
+{resume_text}
+"""
+
+
+def extract_profile_from_resume(resume_text: str) -> dict:
+    data = _generate_json(PROFILE_PROMPT.format(resume_text=resume_text))
+    data.setdefault("skills", [])
+    data.setdefault("roles", [])
+    return data

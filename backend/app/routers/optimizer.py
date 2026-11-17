@@ -1,13 +1,16 @@
 from fastapi import APIRouter, HTTPException, Query, UploadFile
 from fastapi.responses import Response
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.database.models import Job, ResumeOptimization
 from app.deps import DB, get_or_404, get_profile
+from app.jobs.matching import recompute_all
+from app.jobs.skills import extract_skills
+from app.optimizer.ai import AIServiceUnavailable, ai_available, extract_profile_from_resume
 from app.optimizer.document import generate_docx_resume, generate_pdf_resume
 from app.optimizer.parse import detect_sections, extract_text_from_upload
 from app.optimizer.pipeline import optimize_resume_for_job
-from app.schemas import OptimizationRead, ResumeIn, ResumeRead
+from app.schemas import BuildProfileResult, OptimizationRead, ResumeIn, ResumeRead
 
 router = APIRouter(prefix="/api", tags=["resume optimizer"])
 
@@ -47,6 +50,47 @@ async def upload_resume(db: DB, file: UploadFile):
     profile.resume_text = text
     db.commit()
     return _resume_read(text)
+
+
+@router.post("/resume/build-profile", response_model=BuildProfileResult)
+def build_profile_from_resume(db: DB):
+    """Read the saved résumé, pull skills + roles from it (any tech stack), set
+    them on the profile, and rescore every job against them."""
+    profile = get_profile(db)
+    if not profile.resume_text.strip():
+        raise HTTPException(status_code=400, detail="Add your résumé first (paste it or upload a file).")
+
+    skills: list[str] = []
+    roles: list[str] = []
+    source = "fallback"
+    if ai_available():
+        try:
+            data = extract_profile_from_resume(profile.resume_text)
+            skills = [str(s).lower().strip() for s in data.get("skills", []) if str(s).strip()]
+            roles = [str(r).strip() for r in data.get("roles", []) if str(r).strip()]
+            source = "ai"
+        except AIServiceUnavailable:
+            pass
+    if not skills:
+        # No AI (or it failed): fall back to deterministic skill extraction.
+        skills = extract_skills(profile.resume_text)
+
+    skills = list(dict.fromkeys(skills))  # de-dupe, keep order
+    profile.skills = skills
+    if roles:
+        profile.target_roles = list(dict.fromkeys(roles))
+    db.commit()
+
+    rescored = recompute_all(db, profile)
+    matched = (
+        db.scalar(
+            select(func.count()).select_from(Job).where(Job.archived.is_(False), Job.match_score >= 50)
+        )
+        or 0
+    )
+    return BuildProfileResult(
+        skills=skills, roles=profile.target_roles, rescored=rescored, matched=int(matched), source=source
+    )
 
 
 def _get_optimization(db: DB, job_id: int) -> ResumeOptimization | None:

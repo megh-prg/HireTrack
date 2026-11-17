@@ -219,6 +219,14 @@ export interface ResumeState {
   sections_missing: string[]
 }
 
+export interface BuildProfileResult {
+  skills: string[]
+  roles: string[]
+  rescored: number
+  matched: number
+  source: string
+}
+
 export interface Optimization {
   job_id: number
   score_before: number
@@ -310,6 +318,7 @@ export const api = {
       body.append('file', file)
       return request<ResumeState>('/api/resume/upload', { method: 'POST', body })
     },
+    buildProfile: () => request<BuildProfileResult>('/api/resume/build-profile', json('POST')),
   },
   optimizer: {
     run: (jobId: number) => request<Optimization>(`/api/jobs/${jobId}/optimize`, json('POST')),
