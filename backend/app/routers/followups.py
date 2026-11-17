@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.database.models import Application, DSAProblem, PrepQuestion, Recruiter
-from app.deps import DB, get_or_404
+from app.deps import DB, CurrentUser, get_or_404
 from app.routers.applications import CLOSED
 from app.schemas import FollowUpComplete, FollowUpItem
 
@@ -23,7 +23,7 @@ STAGE_LABEL = {
 
 
 @router.get("", response_model=list[FollowUpItem])
-def upcoming(db: DB, horizon_days: int = Query(7, ge=0, le=60)):
+def upcoming(db: DB, user: CurrentUser, horizon_days: int = Query(7, ge=0, le=60)):
     today = date.today()
     until = today + timedelta(days=horizon_days)
     items: list[FollowUpItem] = []
@@ -43,19 +43,29 @@ def upcoming(db: DB, horizon_days: int = Query(7, ge=0, le=60)):
     applications = db.scalars(
         select(Application)
         .options(selectinload(Application.job))
-        .where(Application.next_follow_up <= until, Application.stage.not_in(CLOSED))
+        .where(
+            Application.user_id == user.id,
+            Application.next_follow_up <= until,
+            Application.stage.not_in(CLOSED),
+        )
     ).all()
     for a in applications:
         add("application", a.id, f"{a.job.title} · {a.job.company}", STAGE_LABEL.get(a.stage.value, a.stage.value), a.next_follow_up)
 
-    for r in db.scalars(select(Recruiter).where(Recruiter.next_follow_up <= until)).all():
+    for r in db.scalars(
+        select(Recruiter).where(Recruiter.user_id == user.id, Recruiter.next_follow_up <= until)
+    ).all():
         label = " at ".join(part for part in (r.title, r.company) if part) or "Recruiter"
         add("recruiter", r.id, r.name, f"{label} — {r.status.value.replace('_', ' ')}", r.next_follow_up)
 
-    for p in db.scalars(select(DSAProblem).where(DSAProblem.next_review <= today)).all():
+    for p in db.scalars(
+        select(DSAProblem).where(DSAProblem.user_id == user.id, DSAProblem.next_review <= today)
+    ).all():
         add("dsa", p.id, p.title, f"DSA review · {p.topic} · {p.difficulty.value}", p.next_review)
 
-    for q in db.scalars(select(PrepQuestion).where(PrepQuestion.next_review <= today)).all():
+    for q in db.scalars(
+        select(PrepQuestion).where(PrepQuestion.user_id == user.id, PrepQuestion.next_review <= today)
+    ).all():
         add("prep", q.id, q.question, f"{q.track} review", q.next_review)
 
     return sorted(items, key=lambda i: (i.due, i.kind))
@@ -66,6 +76,7 @@ def complete(
     kind: Literal["application", "recruiter"],
     item_id: int,
     db: DB,
+    user: CurrentUser,
     payload: FollowUpComplete | None = None,
 ):
     """Mark a follow-up done. Optionally schedule the next one `reschedule_days` from today."""
@@ -73,10 +84,10 @@ def complete(
     days = payload.reschedule_days if payload else None
     next_date = today + timedelta(days=days) if days else None
     if kind == "application":
-        application = get_or_404(db, Application, item_id)
+        application = get_or_404(db, Application, item_id, user)
         application.next_follow_up = next_date
     elif kind == "recruiter":
-        recruiter = get_or_404(db, Recruiter, item_id)
+        recruiter = get_or_404(db, Recruiter, item_id, user)
         recruiter.last_contacted = today
         recruiter.next_follow_up = next_date
     else:  # pragma: no cover - guarded by Literal

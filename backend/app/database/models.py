@@ -23,6 +23,11 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _user_fk() -> Mapped[int]:
+    """Every owned row points at its user and is removed when the user is deleted."""
+    return mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+
+
 class Stage(str, enum.Enum):
     saved = "saved"
     applied = "applied"
@@ -57,12 +62,24 @@ class PracticeStatus(str, enum.Enum):
     mastered = "mastered"
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class Profile(Base):
-    """Single-row table holding the job seeker's targets. Drives matching and weekly goals."""
+    """One row per user, holding their targets. Drives matching and weekly goals."""
 
     __tablename__ = "profile"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True
+    )
     name: Mapped[str] = mapped_column(String(120), default="")
     target_roles: Mapped[list[str]] = mapped_column(JSON, default=list)
     locations: Mapped[list[str]] = mapped_column(JSON, default=list)
@@ -79,8 +96,10 @@ class Profile(Base):
 
 class Job(Base):
     __tablename__ = "jobs"
+    __table_args__ = (UniqueConstraint("user_id", "fingerprint"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = _user_fk()
     title: Mapped[str] = mapped_column(String(200))
     company: Mapped[str] = mapped_column(String(200), index=True)
     location: Mapped[str] = mapped_column(String(200), default="")
@@ -91,7 +110,7 @@ class Job(Base):
     skills: Mapped[list[str]] = mapped_column(JSON, default=list)
     source: Mapped[str] = mapped_column(String(40), default="manual")
     external_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
-    fingerprint: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    fingerprint: Mapped[str] = mapped_column(String(64), index=True)
     posted_at: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     archived: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -117,6 +136,7 @@ class Application(Base):
     __tablename__ = "applications"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = _user_fk()
     job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), unique=True)
     stage: Mapped[Stage] = mapped_column(Enum(Stage, native_enum=False), default=Stage.saved)
     applied_on: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -152,6 +172,7 @@ class Recruiter(Base):
     __tablename__ = "recruiters"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = _user_fk()
     name: Mapped[str] = mapped_column(String(120))
     company: Mapped[str] = mapped_column(String(200), default="")
     title: Mapped[str] = mapped_column(String(120), default="")
@@ -168,9 +189,11 @@ class Recruiter(Base):
 
 class DSAProblem(Base):
     __tablename__ = "dsa_problems"
+    __table_args__ = (UniqueConstraint("user_id", "title"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    title: Mapped[str] = mapped_column(String(200), unique=True)
+    user_id: Mapped[int] = _user_fk()
+    title: Mapped[str] = mapped_column(String(200))
     url: Mapped[str] = mapped_column(String(300), default="")
     topic: Mapped[str] = mapped_column(String(60), index=True)
     difficulty: Mapped[Difficulty] = mapped_column(Enum(Difficulty, native_enum=False))
@@ -186,9 +209,10 @@ class DSAProblem(Base):
 
 class PrepQuestion(Base):
     __tablename__ = "prep_questions"
-    __table_args__ = (UniqueConstraint("track", "question"),)
+    __table_args__ = (UniqueConstraint("user_id", "track", "question"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = _user_fk()
     track: Mapped[str] = mapped_column(String(40), index=True)
     question: Mapped[str] = mapped_column(String(500))
     answer: Mapped[str] = mapped_column(Text, default="")
@@ -206,6 +230,7 @@ class PracticeLog(Base):
     __tablename__ = "practice_logs"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = _user_fk()
     kind: Mapped[str] = mapped_column(String(10))  # "dsa" | "prep"
     item_id: Mapped[int] = mapped_column(Integer)
     quality: Mapped[int] = mapped_column(Integer)
@@ -219,6 +244,7 @@ class ResumeOptimization(Base):
     __tablename__ = "resume_optimizations"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = _user_fk()
     job_id: Mapped[int] = mapped_column(
         ForeignKey("jobs.id", ondelete="CASCADE"), unique=True, index=True
     )
@@ -236,9 +262,10 @@ class JobSource(Base):
     """A saved feed: a company careers board or a search, re-run on refresh."""
 
     __tablename__ = "job_sources"
-    __table_args__ = (UniqueConstraint("kind", "query", "location"),)
+    __table_args__ = (UniqueConstraint("user_id", "kind", "query", "location"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = _user_fk()
     kind: Mapped[str] = mapped_column(String(20))  # greenhouse | lever | ashby | adzuna | remotive
     query: Mapped[str] = mapped_column(String(200))  # company slug or search keywords
     location: Mapped[str] = mapped_column(String(120), default="")

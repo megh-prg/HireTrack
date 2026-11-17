@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database.models import JobSource
-from app.deps import DB, get_or_404
+from app.deps import DB, CurrentUser, get_or_404
 from app.jobs.ingestion import upsert_jobs
 from app.jobs.sources import SourceError, SourceQuery, apply_filters, fetch, parse_careers_url
 from app.schemas import JobSourceCreate, JobSourceRead, JobSourceUpdate, SourceRunResult
@@ -27,7 +27,7 @@ def run_source(db: Session, source: JobSource) -> SourceRunResult:
             )
         )
         jobs = apply_filters(jobs, source.title_keywords, source.location_keywords)[: source.limit]
-        result = upsert_jobs(db, jobs, source=source.kind)
+        result = upsert_jobs(db, jobs, source.kind, source.user_id)
         found, created, duplicates = len(jobs), result.created, result.duplicates
         source.last_error = ""
     except SourceError as exc:
@@ -41,7 +41,7 @@ def run_source(db: Session, source: JobSource) -> SourceRunResult:
 
 
 def refresh_stale(db: Session, older_than_hours: float) -> int:
-    """Run every enabled source not refreshed within the window. Used by the background loop."""
+    """Run every enabled source (across all users) not refreshed within the window."""
     cutoff = datetime.now(timezone.utc) - timedelta(hours=older_than_hours)
     ran = 0
     for source in db.scalars(select(JobSource).where(JobSource.enabled.is_(True))).all():
@@ -55,12 +55,14 @@ def refresh_stale(db: Session, older_than_hours: float) -> int:
 
 
 @router.get("", response_model=list[JobSourceRead])
-def list_sources(db: DB):
-    return db.scalars(select(JobSource).order_by(JobSource.kind, JobSource.query)).all()
+def list_sources(db: DB, user: CurrentUser):
+    return db.scalars(
+        select(JobSource).where(JobSource.user_id == user.id).order_by(JobSource.kind, JobSource.query)
+    ).all()
 
 
 @router.post("", response_model=SourceRunResult, status_code=201)
-def create_source(payload: JobSourceCreate, db: DB):
+def create_source(payload: JobSourceCreate, db: DB, user: CurrentUser):
     kind, query = payload.kind, payload.query.strip()
     if payload.url:
         parsed = parse_careers_url(payload.url)
@@ -76,13 +78,17 @@ def create_source(payload: JobSourceCreate, db: DB):
 
     exists = db.scalar(
         select(JobSource.id).where(
-            JobSource.kind == kind, JobSource.query == query, JobSource.location == payload.location
+            JobSource.user_id == user.id,
+            JobSource.kind == kind,
+            JobSource.query == query,
+            JobSource.location == payload.location,
         )
     )
     if exists:
         raise HTTPException(409, "This source is already saved — use Refresh")
 
     source = JobSource(
+        user_id=user.id,
         kind=kind,
         query=query,
         location=payload.location,
@@ -104,8 +110,8 @@ def create_source(payload: JobSourceCreate, db: DB):
 
 
 @router.patch("/{source_id}", response_model=JobSourceRead)
-def update_source(source_id: int, payload: JobSourceUpdate, db: DB):
-    source = get_or_404(db, JobSource, source_id)
+def update_source(source_id: int, payload: JobSourceUpdate, db: DB, user: CurrentUser):
+    source = get_or_404(db, JobSource, source_id, user)
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(source, key, value)
     db.commit()
@@ -113,18 +119,20 @@ def update_source(source_id: int, payload: JobSourceUpdate, db: DB):
 
 
 @router.post("/{source_id}/run", response_model=SourceRunResult)
-def run_one(source_id: int, db: DB):
-    return run_source(db, get_or_404(db, JobSource, source_id))
+def run_one(source_id: int, db: DB, user: CurrentUser):
+    return run_source(db, get_or_404(db, JobSource, source_id, user))
 
 
 @router.post("/run-all", response_model=list[SourceRunResult])
-def run_all(db: DB):
-    sources = db.scalars(select(JobSource).where(JobSource.enabled.is_(True))).all()
+def run_all(db: DB, user: CurrentUser):
+    sources = db.scalars(
+        select(JobSource).where(JobSource.user_id == user.id, JobSource.enabled.is_(True))
+    ).all()
     return [run_source(db, s) for s in sources]
 
 
 @router.delete("/{source_id}", status_code=204)
-def delete_source(source_id: int, db: DB):
+def delete_source(source_id: int, db: DB, user: CurrentUser):
     """Stops future imports; jobs already imported stay in your list."""
-    db.delete(get_or_404(db, JobSource, source_id))
+    db.delete(get_or_404(db, JobSource, source_id, user))
     db.commit()

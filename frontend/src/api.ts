@@ -248,10 +248,39 @@ export class ApiError extends Error {
 }
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
+const TOKEN_KEY = 'hiretrack-token'
+
+export function getToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_KEY)
+  } catch {
+    return null
+  }
+}
+
+export function setToken(token: string | null) {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token)
+    else localStorage.removeItem(TOKEN_KEY)
+  } catch {
+    /* storage unavailable */
+  }
+}
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const headers = init.body instanceof FormData ? undefined : { 'Content-Type': 'application/json' }
-  const res = await fetch(`${BASE}${path}`, { ...init, headers: { ...headers, ...init.headers } })
+  const headers: Record<string, string> = {}
+  if (!(init.body instanceof FormData)) headers['Content-Type'] = 'application/json'
+  const token = getToken()
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const res = await fetch(`${BASE}${path}`, {
+    ...init,
+    headers: { ...headers, ...(init.headers as Record<string, string> | undefined) },
+  })
+  if (res.status === 401) {
+    setToken(null)
+    window.dispatchEvent(new Event('hiretrack-unauthorized'))
+    throw new ApiError(401, 'Your session expired — please sign in again.')
+  }
   if (!res.ok) {
     let message = res.statusText
     try {
@@ -277,7 +306,19 @@ const json = (method: string, body?: unknown): RequestInit => ({
   body: body === undefined ? undefined : JSON.stringify(body),
 })
 
+export interface AuthResult {
+  token: string
+  email: string
+}
+
 export const api = {
+  auth: {
+    signup: (email: string, password: string) =>
+      request<AuthResult>('/api/auth/signup', json('POST', { email, password })),
+    login: (email: string, password: string) =>
+      request<AuthResult>('/api/auth/login', json('POST', { email, password })),
+    me: () => request<{ id: number; email: string }>('/api/auth/me'),
+  },
   profile: {
     get: () => request<Profile>('/api/profile'),
     save: (p: Profile) => request<Profile>('/api/profile', json('PUT', p)),

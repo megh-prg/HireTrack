@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.database.models import Application, Job, Stage, StageEvent
-from app.deps import DB, get_or_404
+from app.deps import DB, CurrentUser, get_or_404
 from app.jobs.ingestion import upsert_jobs
 from app.schemas import ApplicationCreate, ApplicationRead, ApplicationUpdate
 
@@ -34,11 +34,11 @@ def _apply_stage(application: Application, stage: Stage, previous: Stage | None)
         application.next_follow_up = today + timedelta(days=FOLLOW_UP_AFTER_DAYS[stage])
 
 
-def _load(db, application_id: int) -> Application:
+def _load(db, application_id: int, user) -> Application:
     stmt = (
         select(Application)
         .options(selectinload(Application.job), selectinload(Application.events))
-        .where(Application.id == application_id)
+        .where(Application.id == application_id, Application.user_id == user.id)
     )
     application = db.scalar(stmt)
     if application is None:
@@ -47,9 +47,11 @@ def _load(db, application_id: int) -> Application:
 
 
 @router.get("", response_model=list[ApplicationRead])
-def list_applications(db: DB, stage: Stage | None = None):
-    stmt = select(Application).options(
-        selectinload(Application.job), selectinload(Application.events)
+def list_applications(db: DB, user: CurrentUser, stage: Stage | None = None):
+    stmt = (
+        select(Application)
+        .where(Application.user_id == user.id)
+        .options(selectinload(Application.job), selectinload(Application.events))
     )
     if stage:
         stmt = stmt.where(Application.stage == stage)
@@ -57,19 +59,22 @@ def list_applications(db: DB, stage: Stage | None = None):
 
 
 @router.post("", response_model=ApplicationRead, status_code=201)
-def create_application(payload: ApplicationCreate, db: DB):
+def create_application(payload: ApplicationCreate, db: DB, user: CurrentUser):
     if payload.job is not None:
-        result = upsert_jobs(db, [payload.job], source="manual")
+        result = upsert_jobs(db, [payload.job], "manual", user.id)
         if not result.created:
             raise HTTPException(409, "This job already exists — track it from the Jobs page")
         job_id = result.created_ids[0]
     else:
-        job_id = get_or_404(db, Job, payload.job_id).id
+        job_id = get_or_404(db, Job, payload.job_id, user).id
 
-    if db.scalar(select(Application.id).where(Application.job_id == job_id)):
+    if db.scalar(
+        select(Application.id).where(Application.user_id == user.id, Application.job_id == job_id)
+    ):
         raise HTTPException(409, "You are already tracking this job")
 
     application = Application(
+        user_id=user.id,
         job_id=job_id,
         stage=payload.stage,
         applied_on=payload.applied_on,
@@ -81,12 +86,12 @@ def create_application(payload: ApplicationCreate, db: DB):
         application.next_follow_up = payload.next_follow_up
     db.add(application)
     db.commit()
-    return _load(db, application.id)
+    return _load(db, application.id, user)
 
 
 @router.patch("/{application_id}", response_model=ApplicationRead)
-def update_application(application_id: int, payload: ApplicationUpdate, db: DB):
-    application = _load(db, application_id)
+def update_application(application_id: int, payload: ApplicationUpdate, db: DB, user: CurrentUser):
+    application = _load(db, application_id, user)
     changes = payload.model_dump(exclude_unset=True)
     stage = changes.pop("stage", None)
     if stage is not None and stage != application.stage:
@@ -94,10 +99,10 @@ def update_application(application_id: int, payload: ApplicationUpdate, db: DB):
     for key, value in changes.items():
         setattr(application, key, value)
     db.commit()
-    return _load(db, application_id)
+    return _load(db, application_id, user)
 
 
 @router.delete("/{application_id}", status_code=204)
-def delete_application(application_id: int, db: DB):
-    db.delete(get_or_404(db, Application, application_id))
+def delete_application(application_id: int, db: DB, user: CurrentUser):
+    db.delete(get_or_404(db, Application, application_id, user))
     db.commit()

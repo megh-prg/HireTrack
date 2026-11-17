@@ -6,9 +6,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.database import SessionLocal, init_db
+from app.database import Base, SessionLocal, engine, init_db
 from app.routers import (
     applications,
+    auth,
     dsa,
     followups,
     jobs,
@@ -20,7 +21,6 @@ from app.routers import (
     recruiters,
     sources,
 )
-from app.seed import run_seed
 
 settings = get_settings()
 log = logging.getLogger("hiretrack")
@@ -46,9 +46,9 @@ async def auto_refresh_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    if settings.reset_db:
+        Base.metadata.drop_all(bind=engine)
     init_db()
-    with SessionLocal() as db:
-        run_seed(db, settings.prep_dir, demo=settings.seed_demo_data)
     task = asyncio.create_task(auto_refresh_loop()) if settings.auto_refresh_hours > 0 else None
     yield
     if task:
@@ -73,7 +73,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for module in (profile, jobs, sources, matching, optimizer, applications, recruiters, dsa, prep, followups, progress):
+for module in (auth, profile, jobs, sources, matching, optimizer, applications, recruiters, dsa, prep, followups, progress):
     app.include_router(module.router)
 
 

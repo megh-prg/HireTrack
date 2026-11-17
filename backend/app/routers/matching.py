@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.database.models import Job
-from app.deps import DB, get_profile
+from app.deps import DB, CurrentUser, get_profile
 from app.jobs.matching import analyze_text, recompute_all, skill_gaps
 from app.jobs.skills import extract_skills
 from app.schemas import AnalyzeRequest, AnalyzeResponse, JobRead, SkillGap
@@ -14,6 +14,7 @@ router = APIRouter(prefix="/api/matching", tags=["matching"])
 @router.get("", response_model=list[JobRead])
 def top_matches(
     db: DB,
+    user: CurrentUser,
     min_score: float = Query(50, ge=0, le=100),
     include_tracked: bool = False,
     limit: int = Query(50, ge=1, le=500),
@@ -21,7 +22,7 @@ def top_matches(
     stmt = (
         select(Job)
         .options(selectinload(Job.application))
-        .where(Job.archived.is_(False), Job.match_score >= min_score)
+        .where(Job.user_id == user.id, Job.archived.is_(False), Job.match_score >= min_score)
     )
     if not include_tracked:
         stmt = stmt.where(~Job.application.has())
@@ -29,14 +30,14 @@ def top_matches(
 
 
 @router.post("/recompute")
-def recompute(db: DB) -> dict[str, int]:
-    return {"rescored": recompute_all(db, get_profile(db))}
+def recompute(db: DB, user: CurrentUser) -> dict[str, int]:
+    return {"rescored": recompute_all(db, get_profile(db, user))}
 
 
 @router.post("/analyze", response_model=AnalyzeResponse)
-def analyze(payload: AnalyzeRequest, db: DB):
+def analyze(payload: AnalyzeRequest, db: DB, user: CurrentUser):
     """Paste any job description and see how well it fits your profile, without saving it."""
-    result = analyze_text(payload.title, payload.description, payload.location, get_profile(db))
+    result = analyze_text(payload.title, payload.description, payload.location, get_profile(db, user))
     return AnalyzeResponse(
         score=result.score,
         skills=extract_skills(f"{payload.title}\n{payload.description}"),
@@ -47,5 +48,5 @@ def analyze(payload: AnalyzeRequest, db: DB):
 
 
 @router.get("/skill-gaps", response_model=list[SkillGap])
-def gaps(db: DB, min_score: float = 40, limit: int = Query(10, ge=1, le=50)):
-    return skill_gaps(db, min_score=min_score, limit=limit)
+def gaps(db: DB, user: CurrentUser, min_score: float = 40, limit: int = Query(10, ge=1, le=50)):
+    return skill_gaps(db, user.id, min_score=min_score, limit=limit)

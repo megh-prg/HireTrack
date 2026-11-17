@@ -19,7 +19,12 @@ from app.main import app  # noqa: E402
 @pytest.fixture()
 def client():
     Base.metadata.drop_all(bind=engine)
-    with TestClient(app) as test_client:  # runs lifespan: create tables + seed prep content
+    with TestClient(app) as test_client:  # runs lifespan: create tables
+        resp = test_client.post(
+            "/api/auth/signup", json={"email": "test@example.com", "password": "secret123"}
+        )
+        assert resp.status_code == 201, resp.text
+        test_client.headers["Authorization"] = f"Bearer {resp.json()['token']}"
         yield test_client
 
 

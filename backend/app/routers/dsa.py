@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 
 from app.database.models import Difficulty, DSAProblem, PracticeLog, PracticeStatus
-from app.deps import DB, get_or_404
+from app.deps import DB, CurrentUser, get_or_404
 from app.schemas import DSAProblemBase, DSAProblemRead, DSAProblemUpdate, PracticeIn
 from app.services.scheduling import next_review
 
@@ -16,12 +16,13 @@ DIFFICULTY_ORDER = {Difficulty.easy: 0, Difficulty.medium: 1, Difficulty.hard: 2
 @router.get("", response_model=list[DSAProblemRead])
 def list_problems(
     db: DB,
+    user: CurrentUser,
     topic: str | None = None,
     difficulty: Difficulty | None = None,
     status: PracticeStatus | None = None,
     due: bool = False,
 ):
-    stmt = select(DSAProblem)
+    stmt = select(DSAProblem).where(DSAProblem.user_id == user.id)
     if topic:
         stmt = stmt.where(DSAProblem.topic == topic)
     if difficulty:
@@ -35,18 +36,20 @@ def list_problems(
 
 
 @router.post("", response_model=DSAProblemRead, status_code=201)
-def create_problem(payload: DSAProblemBase, db: DB):
-    if db.scalar(select(DSAProblem.id).where(DSAProblem.title == payload.title)):
+def create_problem(payload: DSAProblemBase, db: DB, user: CurrentUser):
+    if db.scalar(
+        select(DSAProblem.id).where(DSAProblem.user_id == user.id, DSAProblem.title == payload.title)
+    ):
         raise HTTPException(409, "Problem already exists")
-    problem = DSAProblem(**payload.model_dump())
+    problem = DSAProblem(user_id=user.id, **payload.model_dump())
     db.add(problem)
     db.commit()
     return problem
 
 
 @router.patch("/{problem_id}", response_model=DSAProblemRead)
-def update_problem(problem_id: int, payload: DSAProblemUpdate, db: DB):
-    problem = get_or_404(db, DSAProblem, problem_id)
+def update_problem(problem_id: int, payload: DSAProblemUpdate, db: DB, user: CurrentUser):
+    problem = get_or_404(db, DSAProblem, problem_id, user)
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(problem, key, value)
     db.commit()
@@ -54,8 +57,8 @@ def update_problem(problem_id: int, payload: DSAProblemUpdate, db: DB):
 
 
 @router.post("/{problem_id}/practice", response_model=DSAProblemRead)
-def log_practice(problem_id: int, payload: PracticeIn, db: DB):
-    problem = get_or_404(db, DSAProblem, problem_id)
+def log_practice(problem_id: int, payload: PracticeIn, db: DB, user: CurrentUser):
+    problem = get_or_404(db, DSAProblem, problem_id, user)
     today = date.today()
     problem.attempts += 1
     problem.last_practiced = today
@@ -66,12 +69,16 @@ def log_practice(problem_id: int, payload: PracticeIn, db: DB):
         problem.status = PracticeStatus.mastered
     else:
         problem.status = PracticeStatus.solved
-    db.add(PracticeLog(kind="dsa", item_id=problem.id, quality=payload.quality, minutes=payload.minutes))
+    db.add(
+        PracticeLog(
+            user_id=user.id, kind="dsa", item_id=problem.id, quality=payload.quality, minutes=payload.minutes
+        )
+    )
     db.commit()
     return problem
 
 
 @router.delete("/{problem_id}", status_code=204)
-def delete_problem(problem_id: int, db: DB):
-    db.delete(get_or_404(db, DSAProblem, problem_id))
+def delete_problem(problem_id: int, db: DB, user: CurrentUser):
+    db.delete(get_or_404(db, DSAProblem, problem_id, user))
     db.commit()

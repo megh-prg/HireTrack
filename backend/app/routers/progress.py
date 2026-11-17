@@ -16,7 +16,7 @@ from app.database.models import (
     RecruiterStatus,
     Stage,
 )
-from app.deps import DB, get_profile
+from app.deps import DB, CurrentUser, get_profile
 from app.jobs.matching import skill_gaps
 from app.routers.prep import track_summaries
 from app.schemas import GoalProgress, Progress
@@ -51,20 +51,25 @@ def _streak(active_days: set[date], today: date) -> int:
 
 
 @router.get("", response_model=Progress)
-def progress(db: DB):
+def progress(db: DB, user: CurrentUser):
     today = date.today()
     week_start = today - timedelta(days=today.weekday())
-    profile = get_profile(db)
+    profile = get_profile(db, user)
+    uid = user.id
 
-    applications = db.scalars(select(Application).options(selectinload(Application.events))).all()
+    applications = db.scalars(
+        select(Application).where(Application.user_id == uid).options(selectinload(Application.events))
+    ).all()
     furthest = [_furthest_stage(a) for a in applications]
     applied = sum(1 for f in furthest if f >= 0)
     responded = sum(1 for f in furthest if f >= FUNNEL_INDEX[Stage.recruiter_screen])
     interviewed = sum(1 for f in furthest if f >= FUNNEL_INDEX[Stage.technical])
 
-    recruiters = db.scalars(select(Recruiter)).all()
-    problems = db.scalars(select(DSAProblem)).all()
-    logs = db.scalars(select(PracticeLog).where(PracticeLog.at >= today - timedelta(days=120))).all()
+    recruiters = db.scalars(select(Recruiter).where(Recruiter.user_id == uid)).all()
+    problems = db.scalars(select(DSAProblem).where(DSAProblem.user_id == uid)).all()
+    logs = db.scalars(
+        select(PracticeLog).where(PracticeLog.user_id == uid, PracticeLog.at >= today - timedelta(days=120))
+    ).all()
 
     # Weekly applications for the last 8 weeks, oldest first.
     weekly = Counter(
@@ -86,7 +91,9 @@ def progress(db: DB):
 
     return Progress(
         totals={
-            "jobs": db.scalar(select(func.count()).select_from(Job).where(Job.archived.is_(False))) or 0,
+            "jobs": db.scalar(
+                select(func.count()).select_from(Job).where(Job.user_id == uid, Job.archived.is_(False))
+            ) or 0,
             "applications": applied,
             "active": sum(1 for a in applications if a.stage not in {Stage.saved, Stage.offer, Stage.rejected, Stage.withdrawn}),
             "interviews": interviewed,
@@ -98,8 +105,14 @@ def progress(db: DB):
             "referrals": sum(1 for r in recruiters if r.status == RecruiterStatus.referred),
             "dsa_solved": sum(1 for p in problems if p.status in SOLVED),
             "dsa_total": len(problems),
-            "prep_reviewed": db.scalar(select(func.count()).select_from(PrepQuestion).where(PrepQuestion.last_reviewed.is_not(None))) or 0,
-            "prep_total": db.scalar(select(func.count()).select_from(PrepQuestion)) or 0,
+            "prep_reviewed": db.scalar(
+                select(func.count()).select_from(PrepQuestion).where(
+                    PrepQuestion.user_id == uid, PrepQuestion.last_reviewed.is_not(None)
+                )
+            ) or 0,
+            "prep_total": db.scalar(
+                select(func.count()).select_from(PrepQuestion).where(PrepQuestion.user_id == uid)
+            ) or 0,
         },
         funnel=[{"stage": s.value, "count": sum(1 for f in furthest if f >= i)} for i, s in enumerate(FUNNEL)],
         response_rate=round(responded / applied * 100, 1) if applied else 0.0,
@@ -129,7 +142,7 @@ def progress(db: DB):
         dsa_by_topic=[
             {"topic": t, "total": v[0], "solved": v[1]} for t, v in sorted(by_topic.items())
         ],
-        prep_tracks=track_summaries(db),
+        prep_tracks=track_summaries(db, uid),
         practice_streak_days=_streak(active_days, today),
-        skill_gaps=skill_gaps(db, limit=8),
+        skill_gaps=skill_gaps(db, uid, limit=8),
     )

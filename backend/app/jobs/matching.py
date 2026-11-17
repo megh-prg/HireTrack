@@ -117,17 +117,19 @@ def analyze_text(title: str, description: str, location: str, profile: Profile) 
 
 
 def recompute_all(db: Session, profile: Profile) -> int:
-    jobs = db.scalars(select(Job).where(Job.archived.is_(False))).all()
+    jobs = db.scalars(
+        select(Job).where(Job.user_id == profile.user_id, Job.archived.is_(False))
+    ).all()
     for job in jobs:
         apply_match(job, profile)
     db.commit()
     return len(jobs)
 
 
-def skill_gaps(db: Session, min_score: float = 40, limit: int = 10) -> list[dict]:
+def skill_gaps(db: Session, user_id: int, min_score: float = 40, limit: int = 10) -> list[dict]:
     """Skills most often missing from jobs you are a reasonable fit for."""
     jobs = db.scalars(
-        select(Job).where(Job.archived.is_(False), Job.match_score >= min_score)
+        select(Job).where(Job.user_id == user_id, Job.archived.is_(False), Job.match_score >= min_score)
     ).all()
     counts = Counter(skill for job in jobs for skill in job.missing_skills)
     return [

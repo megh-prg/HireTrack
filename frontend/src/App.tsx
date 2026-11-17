@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom'
-import { api } from './api'
+import { api, getToken, setToken } from './api'
 import Applications from './pages/Applications'
 import DSA from './pages/DSA'
 import FollowUps from './pages/FollowUps'
 import Jobs from './pages/Jobs'
+import Login from './pages/Login'
 import Matching from './pages/Matching'
 import Optimizer from './pages/Optimizer'
 import Prep from './pages/Prep'
@@ -38,7 +39,7 @@ function readTheme(): Theme {
   }
 }
 
-function Shell() {
+function Shell({ onLogout }: { onLogout: () => void }) {
   const location = useLocation()
   const [dueCount, setDueCount] = useState(0)
   const [theme, setTheme] = useState<Theme>(readTheme)
@@ -89,6 +90,9 @@ function Shell() {
           <button className="theme-toggle" onClick={() => setTheme(nextTheme[theme])}>
             Theme: {theme}
           </button>
+          <button className="theme-toggle" onClick={onLogout}>
+            Sign out
+          </button>
         </div>
       </aside>
       <nav className="mobile-nav" aria-label="Main">
@@ -119,9 +123,41 @@ function Shell() {
 }
 
 export default function App() {
+  const [authed, setAuthed] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    if (!getToken()) {
+      setAuthed(false)
+      return
+    }
+    api.auth
+      .me()
+      .then(() => setAuthed(true))
+      .catch(() => setAuthed(false))
+  }, [])
+
+  useEffect(() => {
+    const onUnauth = () => setAuthed(false)
+    window.addEventListener('hiretrack-unauthorized', onUnauth)
+    return () => window.removeEventListener('hiretrack-unauthorized', onUnauth)
+  }, [])
+
+  if (authed === null) {
+    return (
+      <div className="muted" style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
+        Loading…
+      </div>
+    )
+  }
+  if (!authed) {
+    return <Login onAuthed={() => setAuthed(true)} />
+  }
   return (
     <BrowserRouter>
-      <Shell />
+      <Shell onLogout={() => {
+        setToken(null)
+        setAuthed(false)
+      }} />
     </BrowserRouter>
   )
 }

@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import case, func, or_, select
 
 from app.database.models import PracticeLog, PrepQuestion
-from app.deps import DB, get_or_404
+from app.deps import DB, CurrentUser, get_or_404
 from app.jobs.matching import skill_gaps
 from app.schemas import (
     PREP_TRACKS,
@@ -20,7 +20,7 @@ from app.services.scheduling import next_review
 router = APIRouter(prefix="/api/prep", tags=["interview prep"])
 
 
-def track_summaries(db) -> list[TrackSummary]:
+def track_summaries(db, user_id: int) -> list[TrackSummary]:
     today = date.today()
     rows = db.execute(
         select(
@@ -29,7 +29,9 @@ def track_summaries(db) -> list[TrackSummary]:
             func.count(PrepQuestion.last_reviewed),
             func.sum(case((PrepQuestion.next_review <= today, 1), else_=0)),
             func.avg(PrepQuestion.confidence),
-        ).group_by(PrepQuestion.track)
+        )
+        .where(PrepQuestion.user_id == user_id)
+        .group_by(PrepQuestion.track)
     ).all()
     by_track = {r[0]: r for r in rows}
     return [
@@ -45,13 +47,13 @@ def track_summaries(db) -> list[TrackSummary]:
 
 
 @router.get("/tracks", response_model=list[TrackSummary])
-def tracks(db: DB):
-    return track_summaries(db)
+def tracks(db: DB, user: CurrentUser):
+    return track_summaries(db, user.id)
 
 
 @router.get("/questions", response_model=list[PrepQuestionRead])
-def list_questions(db: DB, track: Track | None = None, due: bool = False, q: str = ""):
-    stmt = select(PrepQuestion)
+def list_questions(db: DB, user: CurrentUser, track: Track | None = None, due: bool = False, q: str = ""):
+    stmt = select(PrepQuestion).where(PrepQuestion.user_id == user.id)
     if track:
         stmt = stmt.where(PrepQuestion.track == track)
     if due:
@@ -64,15 +66,16 @@ def list_questions(db: DB, track: Track | None = None, due: bool = False, q: str
 
 
 @router.get("/recommended", response_model=list[PrepQuestionRead])
-def recommended(db: DB, limit: int = Query(10, ge=1, le=50)):
+def recommended(db: DB, user: CurrentUser, limit: int = Query(10, ge=1, le=50)):
     """Personalised queue: weakest questions from the tracks your target jobs need most."""
-    gap_tracks = [g["track"] for g in skill_gaps(db, limit=20) if g["track"] and g["track"] != "dsa"]
+    gap_tracks = [g["track"] for g in skill_gaps(db, user.id, limit=20) if g["track"] and g["track"] != "dsa"]
     ordered_tracks = list(dict.fromkeys(gap_tracks + list(PREP_TRACKS)))
     rank = {t: i for i, t in enumerate(ordered_tracks)}
     today = date.today()
     candidates = db.scalars(
         select(PrepQuestion).where(
-            or_(PrepQuestion.next_review.is_(None), PrepQuestion.next_review <= today)
+            PrepQuestion.user_id == user.id,
+            or_(PrepQuestion.next_review.is_(None), PrepQuestion.next_review <= today),
         )
     ).all()
     candidates.sort(key=lambda p: (rank.get(p.track, 99), p.confidence, p.id))
@@ -80,23 +83,25 @@ def recommended(db: DB, limit: int = Query(10, ge=1, le=50)):
 
 
 @router.post("/questions", response_model=PrepQuestionRead, status_code=201)
-def create_question(payload: PrepQuestionBase, db: DB):
+def create_question(payload: PrepQuestionBase, db: DB, user: CurrentUser):
     exists = db.scalar(
         select(PrepQuestion.id).where(
-            PrepQuestion.track == payload.track, PrepQuestion.question == payload.question
+            PrepQuestion.user_id == user.id,
+            PrepQuestion.track == payload.track,
+            PrepQuestion.question == payload.question,
         )
     )
     if exists:
         raise HTTPException(409, "Question already exists in this track")
-    question = PrepQuestion(**payload.model_dump(), source="user")
+    question = PrepQuestion(user_id=user.id, **payload.model_dump(), source="user")
     db.add(question)
     db.commit()
     return question
 
 
 @router.patch("/questions/{question_id}", response_model=PrepQuestionRead)
-def update_question(question_id: int, payload: PrepQuestionUpdate, db: DB):
-    question = get_or_404(db, PrepQuestion, question_id)
+def update_question(question_id: int, payload: PrepQuestionUpdate, db: DB, user: CurrentUser):
+    question = get_or_404(db, PrepQuestion, question_id, user)
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(question, key, value)
     db.commit()
@@ -104,20 +109,24 @@ def update_question(question_id: int, payload: PrepQuestionUpdate, db: DB):
 
 
 @router.post("/questions/{question_id}/review", response_model=PrepQuestionRead)
-def review_question(question_id: int, payload: PracticeIn, db: DB):
-    question = get_or_404(db, PrepQuestion, question_id)
+def review_question(question_id: int, payload: PracticeIn, db: DB, user: CurrentUser):
+    question = get_or_404(db, PrepQuestion, question_id, user)
     today = date.today()
     question.confidence = payload.quality
     question.last_reviewed = today
     question.review_streak, question.next_review = next_review(
         payload.quality, question.review_streak, today
     )
-    db.add(PracticeLog(kind="prep", item_id=question.id, quality=payload.quality, minutes=payload.minutes))
+    db.add(
+        PracticeLog(
+            user_id=user.id, kind="prep", item_id=question.id, quality=payload.quality, minutes=payload.minutes
+        )
+    )
     db.commit()
     return question
 
 
 @router.delete("/questions/{question_id}", status_code=204)
-def delete_question(question_id: int, db: DB):
-    db.delete(get_or_404(db, PrepQuestion, question_id))
+def delete_question(question_id: int, db: DB, user: CurrentUser):
+    db.delete(get_or_404(db, PrepQuestion, question_id, user))
     db.commit()

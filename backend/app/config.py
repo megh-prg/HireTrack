@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-flash-lite-latest"
     max_upload_bytes: int = 5 * 1024 * 1024
+    # Auth. Set JWT_SECRET to a long random string in production.
+    jwt_secret: str = "dev-insecure-change-me-set-JWT_SECRET-in-production"
+    jwt_expire_days: int = 14
+    # One-time schema reset: drops and recreates all tables on startup. Only used
+    # to migrate the deployed DB when the schema changes (there are no migrations yet).
+    reset_db: bool = False
 
     @property
     def cors_origin_list(self) -> list[str]:

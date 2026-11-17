@@ -12,7 +12,7 @@ from datetime import date, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.database.models import Job, Profile
+from app.database.models import Job, Profile, User
 from app.jobs.matching import apply_match
 from app.jobs.skills import extract_skills
 from app.schemas import JobCreate
@@ -51,11 +51,12 @@ class IngestResult:
     created_ids: list[int] = field(default_factory=list)
 
 
-def build_job(data: JobCreate, source: str) -> Job:
+def build_job(data: JobCreate, source: str, user_id: int) -> Job:
     description = strip_html(data.description)
     remote = data.remote or "remote" in f"{data.location} {data.title}".lower()
     # Feeds occasionally send very long location lists; clip to the column sizes.
     return Job(
+        user_id=user_id,
         title=data.title.strip()[:200],
         company=data.company.strip()[:200],
         location=data.location.strip()[:200],
@@ -71,14 +72,14 @@ def build_job(data: JobCreate, source: str) -> Job:
     )
 
 
-def upsert_jobs(db: Session, items: list[JobCreate], source: str) -> IngestResult:
+def upsert_jobs(db: Session, items: list[JobCreate], source: str, user_id: int) -> IngestResult:
     result = IngestResult()
-    profile = db.get(Profile, 1)
+    profile = db.scalar(select(Profile).where(Profile.user_id == user_id))
     seen: set[str] = set()
     for item in items:
-        job = build_job(item, source)
+        job = build_job(item, source, user_id)
         if job.fingerprint in seen or db.scalar(
-            select(Job.id).where(Job.fingerprint == job.fingerprint)
+            select(Job.id).where(Job.user_id == user_id, Job.fingerprint == job.fingerprint)
         ):
             result.duplicates += 1
             continue

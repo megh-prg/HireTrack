@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from sqlalchemy import or_, select
 
 from app.database.models import Recruiter, RecruiterStatus
-from app.deps import DB, get_or_404
+from app.deps import DB, CurrentUser, get_or_404
 from app.schemas import RecruiterBase, RecruiterRead, RecruiterUpdate
 
 router = APIRouter(prefix="/api/recruiters", tags=["recruiters"])
@@ -23,8 +23,8 @@ def _on_status(recruiter: Recruiter, explicit_follow_up: bool) -> None:
 
 
 @router.get("", response_model=list[RecruiterRead])
-def list_recruiters(db: DB, q: str = "", status: RecruiterStatus | None = None):
-    stmt = select(Recruiter)
+def list_recruiters(db: DB, user: CurrentUser, q: str = "", status: RecruiterStatus | None = None):
+    stmt = select(Recruiter).where(Recruiter.user_id == user.id)
     if q:
         like = f"%{q}%"
         stmt = stmt.where(or_(Recruiter.name.ilike(like), Recruiter.company.ilike(like)))
@@ -34,8 +34,8 @@ def list_recruiters(db: DB, q: str = "", status: RecruiterStatus | None = None):
 
 
 @router.post("", response_model=RecruiterRead, status_code=201)
-def create_recruiter(payload: RecruiterBase, db: DB):
-    recruiter = Recruiter(**payload.model_dump())
+def create_recruiter(payload: RecruiterBase, db: DB, user: CurrentUser):
+    recruiter = Recruiter(user_id=user.id, **payload.model_dump())
     _on_status(recruiter, explicit_follow_up=payload.next_follow_up is not None)
     db.add(recruiter)
     db.commit()
@@ -43,8 +43,8 @@ def create_recruiter(payload: RecruiterBase, db: DB):
 
 
 @router.patch("/{recruiter_id}", response_model=RecruiterRead)
-def update_recruiter(recruiter_id: int, payload: RecruiterUpdate, db: DB):
-    recruiter = get_or_404(db, Recruiter, recruiter_id)
+def update_recruiter(recruiter_id: int, payload: RecruiterUpdate, db: DB, user: CurrentUser):
+    recruiter = get_or_404(db, Recruiter, recruiter_id, user)
     changes = payload.model_dump(exclude_unset=True)
     status_changed = "status" in changes and changes["status"] != recruiter.status
     for key, value in changes.items():
@@ -58,6 +58,6 @@ def update_recruiter(recruiter_id: int, payload: RecruiterUpdate, db: DB):
 
 
 @router.delete("/{recruiter_id}", status_code=204)
-def delete_recruiter(recruiter_id: int, db: DB):
-    db.delete(get_or_404(db, Recruiter, recruiter_id))
+def delete_recruiter(recruiter_id: int, db: DB, user: CurrentUser):
+    db.delete(get_or_404(db, Recruiter, recruiter_id, user))
     db.commit()
