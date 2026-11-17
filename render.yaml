@@ -29,9 +29,9 @@ services:
         value: "false"
       - key: JWT_SECRET
         generateValue: true
-      # One-time: resets the DB to the new multi-user schema. Flip to "false" after the first deploy.
+      # One-time reset done; keep off so restarts preserve user data.
       - key: RESET_DB
-        value: "true"
+        value: "false"
       # Set these two in the Render dashboard after deploy (kept out of git):
       #   GEMINI_API_KEY  -> your Gemini key
       #   CORS_ORIGINS    -> your Vercel frontend URL, e.g. https://career-copilot.vercel.app
