@@ -18,7 +18,12 @@ _settings = get_settings()
 
 _client: genai.Client | None = None
 if _settings.gemini_api_key:
-    _client = genai.Client(api_key=_settings.gemini_api_key)
+    # Pin the API version: the "-latest" flash models live on v1beta, and newer
+    # google-genai releases default to v1 (where they 404).
+    _client = genai.Client(
+        api_key=_settings.gemini_api_key,
+        http_options={"api_version": "v1beta"},
+    )
 
 
 class AIServiceUnavailable(RuntimeError):
